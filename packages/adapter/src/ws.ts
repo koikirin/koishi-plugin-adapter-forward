@@ -1,11 +1,12 @@
 import { Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer, Session, h } from '@satorijs/satori'
 import { ForwardBot } from './bot'
 import { defineProperty, isNullable } from 'cosmokit'
-import { parseElementObjects, Response, TimeoutError } from './utils'
+import { parseElementObjects, TimeoutError } from './utils'
 import type { Packets, RequestPackets, ResponsePackets } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward')
 logger.level = Logger.DEBUG
+const kForward = Symbol.for('adapter-forward')
 
 interface SharedConfig<T = 'ws-reverse'> {
   protocol: T
@@ -18,20 +19,13 @@ export class WsServer extends Adapter.Server<ForwardBot<ForwardBot.BaseConfig & 
   constructor(ctx: Context, bot: ForwardBot) {
     super()
 
-    const { path = '/forward' } = bot.config as WsServer.Config
+    const { path = '/forward' } = bot.config
     this.wsServer = ctx.router.ws(path, (socket, { headers }) => {
-      logger.debug('connected with', headers)
+      logger.debug('connected')
 
-      const selfId = headers['x-self-id'].toString()
-      // const token = headers['authorization'].toString()
-      console.log(selfId)
-      // if (token !== 'Bearer ' + bot.config.token) {
-      //   return socket.close(1007, 'token')
-      // }
-      // const bot = this.bots.find(bot => bot.selfId === selfId)
-      
+      const sid = headers['x-forward-selfid']?.toString()
+      const bot = ctx.bots.find(b => b instanceof ForwardBot && b.sid === sid) as ForwardBot
       if (!bot) return socket.close(1008, 'invalid x-self-id')
-      console.log('find')
       bot.socket = socket
       accept(bot)
     })
@@ -61,7 +55,7 @@ export namespace WsServer {
 }
 
 let counter = 0
-const listeners: Record<number, (response: Packets) => void> = {}
+const listeners: Record<number, [(response: Packets['payload']) => void, (reason: any) => void]> = {}
 
 export function accept(bot: ForwardBot<ForwardBot.BaseConfig & SharedConfig>) {
   bot.socket.addEventListener('message', ({ data }) => {
@@ -74,24 +68,32 @@ export function accept(bot: ForwardBot<ForwardBot.BaseConfig & SharedConfig>) {
 
     logger.debug('receive %o', parsed)
 
-    if (parsed.echo in listeners) {
-      listeners[parsed.echo](parsed)
+    const { type, payload, echo }: RequestPackets = parsed
+
+    if (echo in listeners) {
+      const [resolve, reject] = listeners[parsed.echo]
+      if (type === 'meta::error') {
+        reject(new Error(payload.msg))
+      } else {
+        resolve(payload)
+      }
       delete listeners[parsed.echo]
+      return
     }
-    const { type, payload }: RequestPackets = parsed
+
     if (type === 'meta::connect') {
 
       const { token } = payload
       if (token !== bot.config.token) {
-        bot.socket?.close(1007, 'token')
+        bot.socket?.close(1007, 'invalid token')
         return
       }
-      console.log('accept, request')
+      console.log('accept, init _request')
       bot.internal._request = ({ type, payload }) => {
         const data = { type, payload, echo: ++counter }
         data.echo = ++counter
         return new Promise((resolve, reject) => {
-          listeners[data.echo] = resolve
+          listeners[data.echo] = [resolve, reject]
           setTimeout(() => {
             delete listeners[data.echo]
             reject(new TimeoutError(payload, type))
@@ -106,17 +108,17 @@ export function accept(bot: ForwardBot<ForwardBot.BaseConfig & SharedConfig>) {
     } else if (type === 'meta::event') {
       const { session: sessionPayload, payload: internalPayload } = payload
       const session = bot.session()
-      defineProperty(session, '_isForwarded', true)
+      defineProperty(session, kForward, true)
       Object.assign(session, sessionPayload)
       defineProperty(session, bot.platform, Object.create(bot.internal))
       Object.assign(session[bot.platform], internalPayload)
       if (bot.config.adapter) {
-        console.log('Attach ', bot.config.adapter)
         defineProperty(session, bot.config.adapter, Object.create(bot.internal))
         Object.assign(session[bot.config.adapter], internalPayload)
       }
       session.elements = parseElementObjects(session.elements)
       session.content = session.elements.join('')
+
       bot.dispatch(session)
     }
   })

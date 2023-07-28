@@ -11,21 +11,6 @@ export class TimeoutError extends Error {
   }
 }
 
-export interface Response {
-  status: string
-  retcode: number
-  data: any
-  echo?: number
-}
-
-export async function dispatchSession(bot: Bot, session: Session) {
-
-  if (!session) return
-  // defineProperty(session, 'onebot', Object.create(bot.internal))
-  // Object.assign(session.onebot, data)
-  bot.dispatch(session)
-}
-
 export function parseElementObject(content: any) {
   if (typeof content === 'object' && content.type && content.attrs && content.children) {
     const { type, attrs, children }: h = content

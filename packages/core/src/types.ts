@@ -53,7 +53,7 @@ export namespace InternalAction {
 
 export type InternalActionPacket = InternalAction.Request | InternalAction.Response
 
-export type RequestPackets = Connect.Request | EventPacket | BotAction.Request | InternalAction.Request
+export type RequestPackets = Connect.Request | EventPacket | BotAction.Request | InternalAction.Request | Error
 
 export type ResponsePackets = Connect.Response | BotAction.Response | InternalAction.Response | Error
 

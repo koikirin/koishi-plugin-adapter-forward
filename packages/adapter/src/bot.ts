@@ -8,19 +8,16 @@ interface Internal {
   _request: <P extends Packets>(packet: P) => Promise<Packets>
 }
 
-export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends Bot<T> {
+const kForward = Symbol.for('adapter-forward')
 
-  public wsServer?: WebSocketLayer
-  listeners: Record<number, (response: Response) => void> = {}
-  counter: number = 0
+export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends Bot<T> {
   internal: Internal
+  [kForward] = true
 
   constructor(ctx: Context, config: T) {
     super(ctx, config)
     ForwardBot.prototype.platform = config.platform
     this.selfId = config.selfId
-    const caller = this
-    console.log(config)
 
     if (config.protocol === 'ws-reverse') {
       ctx.plugin(WsServer, this)
@@ -28,7 +25,6 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
     
     this.internal = new Proxy({} as Internal, {
       set(target, p, newValue, receiver) {
-        // console.log('Internal set', p)
         return Reflect.set(target, p, newValue, receiver)
       },
       get(target, p, receiver) {
@@ -43,7 +39,7 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
           payload: {
             action: p,
             args,
-        }}).then(({ payload }) => payload)
+        }})
       },
     })
 
@@ -70,7 +66,7 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
           payload: {
             action: method,
             args,
-        }}).then(({ payload }) => payload)
+        }})
       })
     }
   }
@@ -100,9 +96,9 @@ export namespace ForwardBot {
 
   export const BaseConfig: Schema<BaseConfig> = Schema.object({
     platform: Schema.string(),
-    selfId: Schema.string().description('机器人的账号。').required(),
-    token: Schema.string().role('secret').description('发送信息时用于验证的字段，应与 OneBot 配置文件中的 `access_token` 保持一致。'),
-    protocol: Schema.const('ws-reverse').description('选择要使用的协议。').default('ws-reverse'),
+    selfId: Schema.string().required(),
+    token: Schema.string().role('secret'),
+    protocol: Schema.const('ws-reverse').default('ws-reverse'),
     adapter: Schema.string(),
   })
 
