@@ -50,13 +50,14 @@ export class WsClient extends Adapter.WsClient<ForwardClient> {
         return
       } else if (type === 'action::internal') {
         const { action, args } = payload
-        logger.debug('call', action, args)
+        logger.debug('call internal', action)
         try {
           bot.internal._request({ 
             type, echo,
             payload: await this.innerBot.internal[action](args), 
           })
         } catch (e) {
+          logger.error(e)
           bot.internal._request({
             type: 'meta::error', echo,
             payload: {
@@ -67,13 +68,14 @@ export class WsClient extends Adapter.WsClient<ForwardClient> {
         }
       } else if (type === 'action::bot') {
         const { action, args } = payload
-        logger.debug('Call: ', action, args, this.innerBot?.sid)
+        logger.debug('call bot', action)
         try {
           bot.internal._request({ 
             type, echo,
             payload: await this.innerBot[action](args),
           })
         } catch (e) {
+          logger.error(e)
           bot.internal._request({
             type: 'meta::error', echo,
             payload: {

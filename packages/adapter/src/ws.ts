@@ -82,13 +82,11 @@ export function accept(bot: ForwardBot<ForwardBot.BaseConfig & SharedConfig>) {
     }
 
     if (type === 'meta::connect') {
-
       const { token } = payload
       if (token !== bot.config.token) {
         bot.socket?.close(1007, 'invalid token')
         return
       }
-      console.log('accept, init _request')
       bot.internal._request = ({ type, payload }) => {
         const data = { type, payload, echo: ++counter }
         data.echo = ++counter
@@ -103,7 +101,10 @@ export function accept(bot: ForwardBot<ForwardBot.BaseConfig & SharedConfig>) {
           })
         })
       }
-
+      bot.internal._request({
+        type: 'meta::connect',
+        payload: { name: 'adapter-forward', version: '1.0.0' }
+      })
       bot.initialize()
     } else if (type === 'meta::event') {
       const { session: sessionPayload, payload: internalPayload } = payload

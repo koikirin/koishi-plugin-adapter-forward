@@ -30,7 +30,7 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
       get(target, p, receiver) {
         if (Reflect.has(target, p)) return Reflect.get(target, p, receiver)
         if (typeof p === 'symbol') return null
-        if (!Reflect.has(target, p)) {
+        if (!Reflect.has(target, '_request')) {
           logger.error('Bot not connected')
           return
         }
@@ -78,7 +78,6 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
   async stop() {
     await super.stop()
   }
-
 
   async initialize() {
     await this.getSelf().then(data => Object.assign(this, data))
