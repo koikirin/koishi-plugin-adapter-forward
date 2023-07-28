@@ -1,0 +1,31 @@
+{
+  "name": "@hieuzest/koishi-plugin-adapter-forward",
+  "description": "Forward your adapter",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "scripts": {},
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin"
+  ],
+  "peerDependencies": {
+    "koishi": "^4.13.2"
+  },
+  "devDependencies": {
+    "@hieuzest/adapter-forward": "^0.0.1"
+  },
+  "koishi": {
+    "service": {
+      "implements": [
+        "adapter"
+      ]
+    }
+  }
+}
