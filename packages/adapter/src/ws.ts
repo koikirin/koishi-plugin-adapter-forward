@@ -89,7 +89,6 @@ export function accept(bot: ForwardBot<ForwardBot.BaseConfig & SharedConfig>) {
       }
       bot.internal._request = ({ type, payload }) => {
         const data = { type, payload, echo: ++counter }
-        data.echo = ++counter
         return new Promise((resolve, reject) => {
           listeners[data.echo] = [resolve, reject]
           setTimeout(() => {
