@@ -1,4 +1,4 @@
-import { Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer, Bot, Awaitable, defineProperty, Dict, Session } from '@satorijs/satori'
+import { Context, Schema, Bot, Awaitable, defineProperty, Session } from '@satorijs/satori'
 import { WsClient } from './ws'
 import type { Packets } from '@hieuzest/adapter-forward'
 
@@ -26,7 +26,7 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
 
     const findInnerBot = () => ctx.bots.find(bot => !bot[kForward] && bot.sid === this.innerSid)
 
-    defineProperty(this, 'getInnerBot', config.testMode ? findInnerBot : () => ctx.bots[this.innerSid])
+    defineProperty(this, 'getInnerBot', config.avoidLoopback ? findInnerBot : () => ctx.bots[this.innerSid])
 
     if (config.protocol === 'ws') {
       ctx.plugin(WsClient, this)
@@ -75,7 +75,7 @@ export namespace ForwardClient {
     platform: string
     selfId: string
     token?: string
-    testMode: boolean
+    avoidLoopback: boolean
   }
 
   export const BaseConfig: Schema<BaseConfig> = Schema.object({
@@ -83,7 +83,7 @@ export namespace ForwardClient {
     selfId: Schema.string().required(),
     token: Schema.string().role('secret'),
     protocol: Schema.const('ws').default('ws'),
-    testMode: Schema.boolean().default(false),
+    avoidLoopback: Schema.boolean().default(true),
   })
 
   export type Config = BaseConfig & WsClient.Config

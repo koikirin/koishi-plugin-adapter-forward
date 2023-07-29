@@ -1,7 +1,6 @@
 import { Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer, Session, h } from '@satorijs/satori'
 import { ForwardClient } from './bot'
-import { defineProperty, isNullable } from 'cosmokit'
-import type { Packets, RequestPackets, ResponsePackets } from '@hieuzest/adapter-forward'
+import type { Packets, ResponsePackets } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward-client')
 logger.level = Logger.DEBUG

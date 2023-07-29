@@ -1,6 +1,6 @@
-import { Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer, Session, h } from '@satorijs/satori'
+import { Adapter, Context, Logger, Schema, Time, WebSocketLayer } from '@satorijs/satori'
 import { ForwardBot } from './bot'
-import { defineProperty, isNullable } from 'cosmokit'
+import { defineProperty } from 'cosmokit'
 import { parseElementObjects, TimeoutError } from './utils'
 import type { Packets, RequestPackets, ResponsePackets } from '@hieuzest/adapter-forward'
 
@@ -13,7 +13,7 @@ interface SharedConfig<T = 'ws-reverse'> {
   responseTimeout?: number
 }
 
-export class WsServer extends Adapter.Server<ForwardBot<ForwardBot.BaseConfig & WsServer.Config>> {
+export class WsServer extends Adapter.Server<ForwardBot> {
   public wsServer?: WebSocketLayer
 
   constructor(ctx: Context, bot: ForwardBot) {
@@ -57,7 +57,7 @@ export namespace WsServer {
 let counter = 0
 const listeners: Record<number, [(response: Packets['payload']) => void, (reason: any) => void]> = {}
 
-export function accept(bot: ForwardBot<ForwardBot.BaseConfig & SharedConfig>) {
+export function accept(bot: ForwardBot) {
   bot.socket.addEventListener('message', ({ data }) => {
     let parsed: any
     try {
@@ -87,14 +87,18 @@ export function accept(bot: ForwardBot<ForwardBot.BaseConfig & SharedConfig>) {
         bot.socket?.close(1007, 'invalid token')
         return
       }
-      bot.internal._request = ({ type, payload }) => {
+      clearTimeout(timeout)
+
+      bot.internal._request = ({ type, payload }, callback: boolean = true) => {
         const data = { type, payload, echo: ++counter }
         return new Promise((resolve, reject) => {
-          listeners[data.echo] = [resolve, reject]
-          setTimeout(() => {
-            delete listeners[data.echo]
-            reject(new TimeoutError(payload, type))
-          }, bot.config.responseTimeout)
+          if (callback) {
+            listeners[data.echo] = [resolve, reject]
+            setTimeout(() => {
+              delete listeners[data.echo]
+              reject(new TimeoutError(payload, type))
+            }, bot.config.responseTimeout)
+          }
           bot.socket.send(JSON.stringify(data), (error) => {
             if (error) reject(error)
           })
@@ -103,7 +107,7 @@ export function accept(bot: ForwardBot<ForwardBot.BaseConfig & SharedConfig>) {
       bot.internal._request({
         type: 'meta::connect',
         payload: { name: 'adapter-forward', version: '1.0.0' }
-      })
+      }, false)
       bot.initialize()
     } else if (type === 'meta::event') {
       const { session: sessionPayload, payload: internalPayload } = payload
@@ -112,9 +116,9 @@ export function accept(bot: ForwardBot<ForwardBot.BaseConfig & SharedConfig>) {
       Object.assign(session, sessionPayload)
       defineProperty(session, bot.platform, Object.create(bot.internal))
       Object.assign(session[bot.platform], internalPayload)
-      if (bot.config.adapter) {
-        defineProperty(session, bot.config.adapter, Object.create(bot.internal))
-        Object.assign(session[bot.config.adapter], internalPayload)
+      if (bot.config.originalProtocolName) {
+        defineProperty(session, bot.config.originalProtocolName, Object.create(bot.internal))
+        Object.assign(session[bot.config.originalProtocolName], internalPayload)
       }
       session.elements = parseElementObjects(session.elements)
       session.content = session.elements.join('')
@@ -125,10 +129,10 @@ export function accept(bot: ForwardBot<ForwardBot.BaseConfig & SharedConfig>) {
 
   bot.socket.addEventListener('close', () => {
     delete bot.internal._request
+    clearTimeout(timeout)
   })
 
-  // setTimeout(() => {
-  //   if (!bot.internal?._request) bot.socket?.close()
-  // }, 10 * 1000)
-
+  const timeout = setTimeout(() => {
+    if (!bot.internal?._request) bot.socket?.close()
+  }, 10 * 1000)
 }

@@ -1,5 +1,4 @@
-import { h, Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer, Bot, defineProperty, Dict, Session } from '@satorijs/satori'
-// import {}
+import { h, Dict } from '@satorijs/satori'
 
 export class TimeoutError extends Error {
   constructor(args: Dict, url: string) {
