@@ -1,12 +1,12 @@
 import { } from 'koishi'
 import { Context, Schema, Bot, Awaitable, defineProperty, Session, Logger } from '@satorijs/satori'
-import { WsClient } from './ws'
-import { Packets, getInternalMethodKeys } from '@hieuzest/adapter-forward'
+import { WsClient, WsServer } from './ws'
+import { RequestPackets, getInternalMethodKeys } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward-client')
 
 interface Internal {
-  _request: <P extends Packets>(packet: P) => Awaitable<void>
+  _request: <P extends RequestPackets>(packet: P) => Awaitable<void>
   _methods: string[]
   _update: () => Promise<void>
 }
@@ -46,6 +46,8 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
 
     if (config.protocol === 'ws') {
       ctx.plugin(WsClient, this)
+    } else if (config.protocol === 'ws-reverse') {
+      ctx.plugin(WsServer, this)
     }
 
     const hookInnerBot = () => {
@@ -125,7 +127,7 @@ export namespace ForwardClient {
     platform: Schema.string().required(),
     selfId: Schema.string().required(),
     token: Schema.string().role('secret'),
-    protocol: Schema.const('ws').default('ws'),
+    protocol: Schema.union(['ws', 'ws-reverse']).default('ws'),
     avoidLoopback: Schema.boolean().default(true),
   })
 
@@ -137,12 +139,15 @@ export namespace ForwardClient {
     loadInternalMethods: Schema.boolean().description('Requires typescript as dependency').default(false),
   }).description('高级设置')
 
-  export type Config = BaseConfig & AdvancedConfig & WsClient.Config
+  export type Config = BaseConfig & AdvancedConfig & (WsServer.Config | WsClient.Config)
 
   export const Config: Schema<Config> = Schema.intersect([
     BaseConfig,
     AdvancedConfig,
-    WsClient.Config,
+    Schema.union([
+      WsServer.Config,
+      WsClient.Config,
+    ]),
   ])
 }
 

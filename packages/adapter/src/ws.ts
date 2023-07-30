@@ -1,24 +1,50 @@
-import { Adapter, Context, Logger, Schema, Time, WebSocketLayer } from '@satorijs/satori'
+import { Adapter, Context, Logger, Schema, Time, WebSocketLayer, Quester } from '@satorijs/satori'
 import { ForwardBot } from './bot'
 import { defineProperty } from 'cosmokit'
 import { parseElementObjects, TimeoutError } from './utils'
-import { Packets, RequestPackets } from '@hieuzest/adapter-forward'
+import { RequestPackets, ResponsePackets } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward')
 const kForward = Symbol.for('adapter-forward')
 
-interface SharedConfig<T = 'ws-reverse'> {
+interface SharedConfig<T = 'ws' | 'ws-reverse'> {
   protocol: T
   responseTimeout?: number
 }
 
-export class WsServer extends Adapter.Server<ForwardBot> {
+export class WsClient extends Adapter.WsClient<ForwardBot> {
+  protected accept = accept
+
+  async prepare(bot: ForwardBot<ForwardBot.BaseConfig & ForwardBot.AdvancedConfig & WsClient.Config>) {
+    const http = this.ctx.http.extend(bot.config)
+    return http.ws(bot.config.endpoint, {
+      headers: {
+        'x-forward-selfid': `${bot.config.platform}:${bot.config.selfId}`
+      }
+    })
+  }
+}
+
+export namespace WsClient {
+  export interface Config extends SharedConfig<'ws'>, Quester.Config, Adapter.WsClient.Config { }
+
+  export const Config: Schema<Config> = Schema.intersect([
+    Schema.object({
+      protocol: Schema.const('ws').required(process.env.KOISHI_ENV !== 'browser'),
+      responseTimeout: Schema.natural().role('time').default(Time.minute).description('等待响应的时间 (单位为毫秒)。'),
+    }).description('连接设置'),
+    Quester.createConfig('ws://127.0.0.1:5140/forward'),
+    Adapter.WsClient.Config,
+  ])
+}
+
+export class WsServer extends Adapter.Server<ForwardBot<ForwardBot.BaseConfig & ForwardBot.AdvancedConfig & WsServer.Config>> {
   public wsServer?: WebSocketLayer
 
   constructor(ctx: Context, bot: ForwardBot) {
     super()
 
-    const { path = '/forward' } = bot.config
+    const { path = '/forward' } = bot.config as WsServer.Config
     this.wsServer = ctx.router.ws(path, (socket, { headers }) => {
       logger.debug('connected')
 
@@ -54,7 +80,7 @@ export namespace WsServer {
 }
 
 let counter = 0
-const listeners: Record<number, [(response: Packets['payload']) => void, (reason: any) => void]> = {}
+const listeners: Record<number, [(response: ResponsePackets['payload']) => void, (reason: any) => void]> = {}
 
 export function accept(bot: ForwardBot) {
   bot.socket.addEventListener('message', ({ data }) => {
@@ -89,16 +115,17 @@ export function accept(bot: ForwardBot) {
       clearTimeout(timeout)
 
       bot.internal._request = ({ type, payload }, callback: boolean = true) => {
-        const data = { type, payload, echo: ++counter }
+        const packet = { type, payload, echo: ++counter }
+        logger.debug('send ws %o', packet)
         return new Promise((resolve, reject) => {
           if (callback) {
-            listeners[data.echo] = [resolve, reject]
+            listeners[packet.echo] = [resolve, reject]
             setTimeout(() => {
-              delete listeners[data.echo]
+              delete listeners[packet.echo]
               reject(new TimeoutError(payload, type))
             }, bot.config.responseTimeout)
           }
-          bot.socket.send(JSON.stringify(data), (error) => {
+          bot.socket.send(JSON.stringify(packet), (error) => {
             if (error) reject(error)
           })
         })

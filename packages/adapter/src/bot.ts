@@ -1,11 +1,11 @@
 import { Context, Logger, Schema, Bot, defineProperty, clone } from '@satorijs/satori'
-import { WsServer } from './ws'
-import { Packets, getInternalMethodKeys } from '@hieuzest/adapter-forward'
+import { WsClient, WsServer } from './ws'
+import { ResponsePackets, getInternalMethodKeys } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward')
 
 interface Internal {
-  _request: <P extends Packets>(packet: P, callback?: boolean) => Promise<Packets>
+  _request: <P extends ResponsePackets>(packet: P, callback?: boolean) => Promise<ResponsePackets>
 }
 
 const kForward = Symbol.for('adapter-forward')
@@ -20,7 +20,9 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
     ForwardBot.prototype.platform = config.platform
     this.selfId = config.selfId
 
-    if (config.protocol === 'ws-reverse') {
+    if (config.protocol === 'ws') {
+      ctx.plugin(WsClient, this)
+    } else if (config.protocol === 'ws-reverse') {
       ctx.plugin(WsServer, this)
     }
 
@@ -109,7 +111,7 @@ export namespace ForwardBot {
     platform: Schema.string().required(),
     selfId: Schema.string().required(),
     token: Schema.string().role('secret'),
-    protocol: Schema.const('ws-reverse').default('ws-reverse'),
+    protocol: Schema.union(['ws', 'ws-reverse'] as const).default('ws-reverse'),
   })
 
   export interface AdvancedConfig {
@@ -122,11 +124,14 @@ export namespace ForwardBot {
     forwardAdapterModuleName: Schema.string().description('Requires typescript as dependency'),
   }).description('高级设置')
 
-  export type Config = BaseConfig & AdvancedConfig & WsServer.Config
+  export type Config = BaseConfig & AdvancedConfig & (WsServer.Config | WsClient.Config)
 
   export const Config: Schema<Config> = Schema.intersect([
     BaseConfig,
     AdvancedConfig,
-    WsServer.Config,
+    Schema.union([
+      WsServer.Config,
+      WsClient.Config,
+    ]),
   ])
 }
