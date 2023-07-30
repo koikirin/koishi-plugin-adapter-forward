@@ -26,6 +26,7 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
     this.internal = Object.create({})
     defineProperty(this.internal, '_update', () => {
       const bot = findInnerBot()
+      if (!this.internal._request) return
       this.internal._request({
         type: 'meta::status',
         payload: {
@@ -121,7 +122,7 @@ export namespace ForwardClient {
   }
 
   export const BaseConfig: Schema<BaseConfig> = Schema.object({
-    platform: Schema.string(),
+    platform: Schema.string().required(),
     selfId: Schema.string().required(),
     token: Schema.string().role('secret'),
     protocol: Schema.const('ws').default('ws'),

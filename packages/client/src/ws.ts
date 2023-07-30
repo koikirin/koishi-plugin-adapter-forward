@@ -3,7 +3,6 @@ import { ForwardClient } from './bot'
 import { Packets, ResponsePackets } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward-client')
-logger.level = Logger.DEBUG
 
 interface SharedConfig<T = 'ws'> {
   protocol: T

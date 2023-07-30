@@ -5,7 +5,6 @@ import { parseElementObjects, TimeoutError } from './utils'
 import { Packets, RequestPackets } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward')
-logger.level = Logger.DEBUG
 const kForward = Symbol.for('adapter-forward')
 
 interface SharedConfig<T = 'ws-reverse'> {
@@ -106,7 +105,7 @@ export function accept(bot: ForwardBot) {
       }
       bot.internal._request({
         type: 'meta::connect',
-        payload: { name: 'adapter-forward', version: '1.0.0' }
+        payload: { name: 'adapter-forward', version: '1.2.0' }
       }, false)
       bot.initialize()
     } else if (type === 'meta::event') {

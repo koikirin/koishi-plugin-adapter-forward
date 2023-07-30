@@ -41,7 +41,8 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
             payload: {
               action: p,
               args,
-          }})
+            }
+          })
         }
       },
     })
@@ -69,7 +70,8 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
           payload: {
             action: method,
             args,
-        }})
+          }
+        })
       })
     }
   }
@@ -104,7 +106,7 @@ export namespace ForwardBot {
   }
 
   export const BaseConfig: Schema<BaseConfig> = Schema.object({
-    platform: Schema.string(),
+    platform: Schema.string().required(),
     selfId: Schema.string().required(),
     token: Schema.string().role('secret'),
     protocol: Schema.const('ws-reverse').default('ws-reverse'),
