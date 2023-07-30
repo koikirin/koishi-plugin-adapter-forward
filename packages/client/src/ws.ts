@@ -1,6 +1,6 @@
 import { Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer, Session, h } from '@satorijs/satori'
 import { ForwardClient } from './bot'
-import type { Packets, ResponsePackets } from '@hieuzest/adapter-forward'
+import { Packets, ResponsePackets } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward-client')
 logger.level = Logger.DEBUG
@@ -31,6 +31,17 @@ export class WsClient extends Adapter.WsClient<ForwardClient> {
   }
 
   async accept(bot: ForwardClient) {
+
+    const unavailable = (echo) => {
+      bot.internal._request({
+        type: 'meta::error', echo,
+        payload: {
+          code: -1,
+          msg: `Bot unavailable`,
+        },
+      })
+    }
+
     bot.socket.addEventListener('message', async ({ data }) => {
       let packet: ResponsePackets
       try {
@@ -46,8 +57,10 @@ export class WsClient extends Adapter.WsClient<ForwardClient> {
       if (type === 'meta::connect') {
         let { name, version } = payload
         logger.info('Initialized with protocol %s %s', name, version)
+        bot.internal._update()
         return
       } else if (type === 'action::internal') {
+        if (!this.innerBot) return unavailable(echo)
         const { action, args } = payload
         logger.debug('call internal', action)
         try {
@@ -61,11 +74,12 @@ export class WsClient extends Adapter.WsClient<ForwardClient> {
             type: 'meta::error', echo,
             payload: {
               code: -2,
-              msg: `Internal Action fail: ${action}`
+              msg: `Internal Action fail: ${action}`,
             },
           })
         }
       } else if (type === 'action::bot') {
+        if (!this.innerBot) return unavailable(echo)
         const { action, args } = payload
         logger.debug('call bot', action)
         try {
@@ -79,8 +93,9 @@ export class WsClient extends Adapter.WsClient<ForwardClient> {
             type: 'meta::error', echo,
             payload: {
               code: -2,
-              msg: `Bot Action fail: ${action}`
-            }})
+              msg: `Bot Action fail: ${action}`,
+            }
+          })
         }
       }
     })
@@ -99,7 +114,7 @@ export class WsClient extends Adapter.WsClient<ForwardClient> {
 }
 
 export namespace WsClient {
-  export interface Config extends SharedConfig<'ws'>, Quester.Config, Adapter.WsClient.Config {}
+  export interface Config extends SharedConfig<'ws'>, Quester.Config, Adapter.WsClient.Config { }
 
   export const Config: Schema<Config> = Schema.intersect([
     Schema.object({

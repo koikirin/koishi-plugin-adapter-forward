@@ -1,10 +1,20 @@
 import type ts from 'typescript'
 
-export async function getInternalMethodKeys(modulePath: string) {
+export async function getInternalMethodKeys(options: {
+  modulePath?: string
+  filePath?: string
+}) {
   const ts = (await import('typescript')).default
+  const path = (await import('path'))
+
+  if (options.filePath) {
+    const p = path.parse(options.filePath)
+    options.filePath = path.join(p.dir, p.name)
+  }
 
   const sourceMap = {
-    '_$$_adapter_forward_$$_.ts': `import '${modulePath}'`
+    '_$$_adapter_forward_$$_.ts': `import '${options.modulePath}'`,
+    [options.filePath]: null,
   }
 
   function createCompilerHost() {

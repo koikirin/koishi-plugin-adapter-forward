@@ -2,7 +2,7 @@ import { Adapter, Context, Logger, Schema, Time, WebSocketLayer } from '@satorij
 import { ForwardBot } from './bot'
 import { defineProperty } from 'cosmokit'
 import { parseElementObjects, TimeoutError } from './utils'
-import type { Packets, RequestPackets, ResponsePackets } from '@hieuzest/adapter-forward'
+import { Packets, RequestPackets } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward')
 logger.level = Logger.DEBUG
@@ -124,6 +124,15 @@ export function accept(bot: ForwardBot) {
       session.content = session.elements.join('')
 
       bot.dispatch(session)
+    } else if (type === 'meta::status') {
+      if (payload.status) {
+        if (payload.status === 'unavailable') bot.status = 'offline'
+        else bot.status = payload.status
+      }
+      if (payload.internalMethods) {
+        bot._internalMethods = payload.internalMethods
+        logger.debug('internalMethods detected', bot._internalMethods)
+      }
     }
   })
 

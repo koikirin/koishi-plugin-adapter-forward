@@ -1,4 +1,4 @@
-import type { Session } from '@satorijs/satori'
+import type { Session, Bot } from '@satorijs/satori'
 
 export interface Packet<T extends string, P> {
   type: T
@@ -32,6 +32,13 @@ export interface EventPayload {
 
 export type EventPacket = Packet<'meta::event', EventPayload>
 
+export interface StatusPayload {
+  status?: Bot.Status | 'unavailable'
+  internalMethods?: string[]
+}
+
+export type StatusPacket = Packet<'meta::status', StatusPayload>
+
 export interface ActionPayload {
   action: string
   args: any[]
@@ -53,8 +60,18 @@ export namespace InternalAction {
 
 export type InternalActionPacket = InternalAction.Request | InternalAction.Response
 
-export type RequestPackets = Connect.Request | EventPacket | BotAction.Request | InternalAction.Request | Error
+export type RequestPackets =
+  | Connect.Request
+  | EventPacket
+  | StatusPacket
+  | BotAction.Request
+  | InternalAction.Request
+  | Error
 
-export type ResponsePackets = Connect.Response | BotAction.Response | InternalAction.Response | Error
+export type ResponsePackets =
+  | Connect.Response
+  | BotAction.Response
+  | InternalAction.Response
+  | Error
 
 export type Packets = RequestPackets | ResponsePackets

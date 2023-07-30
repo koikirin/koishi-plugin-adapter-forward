@@ -1,7 +1,7 @@
 {
   "name": "@hieuzest/adapter-forward",
   "description": "Forward your adapter",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -12,5 +12,8 @@
   "scripts": {},
   "peerDependencies": {
     "@satorijs/satori": "^2.5.4"
+  },
+  "dependencies": {
+    "typescript": "^5.1.3"
   }
 }

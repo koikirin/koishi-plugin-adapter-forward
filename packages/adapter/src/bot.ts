@@ -1,7 +1,6 @@
 import { Context, Logger, Schema, Bot, defineProperty, clone } from '@satorijs/satori'
 import { WsServer } from './ws'
-import type { Packets } from '@hieuzest/adapter-forward'
-import { getInternalMethodKeys } from './internal'
+import { Packets, getInternalMethodKeys } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward')
 
@@ -78,7 +77,9 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
   async start() {
     await super.start()
     if (this.config.forwardAdapterModuleName) try {
-      this._internalMethods = await getInternalMethodKeys(this.config.forwardAdapterModuleName)
+      this._internalMethods = await getInternalMethodKeys({
+        modulePath: this.config.forwardAdapterModuleName
+      })
       logger.debug('internalMethods', this._internalMethods)
     } catch (e) {
       logger.warn('Fail to load internal keys, maybe lack of ts or invalid config')
@@ -126,5 +127,4 @@ export namespace ForwardBot {
     AdvancedConfig,
     WsServer.Config,
   ])
-
 }

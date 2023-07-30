@@ -1,9 +1,14 @@
-import { Context, Schema, Bot, Awaitable, defineProperty, Session } from '@satorijs/satori'
+import { } from 'koishi'
+import { Context, Schema, Bot, Awaitable, defineProperty, Session, Logger } from '@satorijs/satori'
 import { WsClient } from './ws'
-import type { Packets } from '@hieuzest/adapter-forward'
+import { Packets, getInternalMethodKeys } from '@hieuzest/adapter-forward'
+
+const logger = new Logger('forward-client')
 
 interface Internal {
   _request: <P extends Packets>(packet: P) => Awaitable<void>
+  _methods: string[]
+  _update: () => Promise<void>
 }
 
 const kForward = Symbol.for('adapter-forward')
@@ -19,6 +24,16 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
 
     this.innerSid = `${config.platform}:${config.selfId}`
     this.internal = Object.create({})
+    defineProperty(this.internal, '_update', () => {
+      const bot = findInnerBot()
+      this.internal._request({
+        type: 'meta::status',
+        payload: {
+          status: bot?.status || 'unavailable',
+          internalMethods: this.internal._methods
+        }
+      })
+    })
 
     this.platform = 'forward'
     this.selfId = `${this.config.platform}:${this.config.selfId}`
@@ -41,11 +56,38 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
           original(session)
         }
         defineProperty(bot, kDispath, original)
+
+        if (config.loadInternalMethods) {
+          getInternalMethodKeys({
+            filePath: ctx.loader.cache[ctx.loader.keyFor(bot.ctx.runtime.plugin)]
+          }).then(methods => {
+            if (methods && methods.length) this.internal._methods = methods
+            else delete this.internal._methods
+            this.internal._update()
+          }).catch(e => logger.warn('failed to load internalMethods', e))
+        }
       }
     }
 
     hookInnerBot()
-    ctx.on('bot-added', () => hookInnerBot())
+
+    ctx.on('bot-added', (botArg) => {
+      hookInnerBot()
+      const bot = findInnerBot()
+      if (bot === botArg) this.internal._update()
+    })
+
+    ctx.on('bot-removed', (bot) => {
+      if (!bot[kForward] && bot.sid === this.innerSid) {
+        this.internal._methods = []
+        this.internal._update()
+      }
+    })
+
+    ctx.on('bot-status-updated', (botArg) => {
+      const bot = findInnerBot()
+      if (bot === botArg) this.internal._update()
+    })
 
     ctx.on('dispose', () => {
       const bot = findInnerBot()
@@ -86,13 +128,21 @@ export namespace ForwardClient {
     avoidLoopback: Schema.boolean().default(true),
   })
 
-  export type Config = BaseConfig & WsClient.Config
+  export interface AdvancedConfig {
+    loadInternalMethods: boolean
+  }
+
+  export const AdvancedConfig: Schema<AdvancedConfig> = Schema.object({
+    loadInternalMethods: Schema.boolean().description('Requires typescript as dependency').default(false),
+  }).description('高级设置')
+
+  export type Config = BaseConfig & AdvancedConfig & WsClient.Config
 
   export const Config: Schema<Config> = Schema.intersect([
     BaseConfig,
+    AdvancedConfig,
     WsClient.Config,
   ])
-
 }
 
 ForwardClient.prototype.platform = 'forward'
