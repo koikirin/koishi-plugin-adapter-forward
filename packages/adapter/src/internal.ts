@@ -3,7 +3,7 @@ import type ts from 'typescript'
 export async function getInternalMethodKeys(modulePath: string) {
   const ts = (await import('typescript')).default
 
-  const sourceMap = { 
+  const sourceMap = {
     '_$$_adapter_forward_$$_.ts': `import '${modulePath}'`
   }
 

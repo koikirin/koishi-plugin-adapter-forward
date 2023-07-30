@@ -87,12 +87,12 @@ export namespace ForwardClient {
   })
 
   export type Config = BaseConfig & WsClient.Config
-  
+
   export const Config: Schema<Config> = Schema.intersect([
     BaseConfig,
     WsClient.Config,
   ])
-  
+
 }
 
 ForwardClient.prototype.platform = 'forward'

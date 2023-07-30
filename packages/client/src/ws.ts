@@ -51,9 +51,9 @@ export class WsClient extends Adapter.WsClient<ForwardClient> {
         const { action, args } = payload
         logger.debug('call internal', action)
         try {
-          bot.internal._request({ 
+          bot.internal._request({
             type, echo,
-            payload: await this.innerBot.internal[action](args), 
+            payload: await this.innerBot.internal[action](args),
           })
         } catch (e) {
           logger.error(e)
@@ -69,7 +69,7 @@ export class WsClient extends Adapter.WsClient<ForwardClient> {
         const { action, args } = payload
         logger.debug('call bot', action)
         try {
-          bot.internal._request({ 
+          bot.internal._request({
             type, echo,
             payload: await this.innerBot[action](args),
           })
@@ -92,7 +92,7 @@ export class WsClient extends Adapter.WsClient<ForwardClient> {
     }
 
     bot.internal._request({
-      type: 'meta::connect', 
+      type: 'meta::connect',
       payload: { token: bot.config.token }
     })
   }

@@ -38,7 +38,7 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
         }
         if (this._internalMethods?.includes(p)) {
           return (...args: any[]) => target._request({
-            type: 'action::internal', 
+            type: 'action::internal',
             payload: {
               action: p,
               args,
@@ -66,7 +66,7 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
           return
         }
         return this.internal._request({
-          type: 'action::bot', 
+          type: 'action::bot',
           payload: {
             action: method,
             args,
@@ -120,11 +120,11 @@ export namespace ForwardBot {
   }).description('高级设置')
 
   export type Config = BaseConfig & AdvancedConfig & WsServer.Config
-  
+
   export const Config: Schema<Config> = Schema.intersect([
     BaseConfig,
     AdvancedConfig,
     WsServer.Config,
   ])
-  
+
 }

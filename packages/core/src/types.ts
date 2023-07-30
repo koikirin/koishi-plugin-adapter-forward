@@ -47,7 +47,7 @@ export type BotActionPacket = BotAction.Request | BotAction.Response
 
 export namespace InternalAction {
   export type Request = Packet<'action::internal', ActionPayload>
-  
+
   export type Response = Packet<'action::internal', any>
 }
 
