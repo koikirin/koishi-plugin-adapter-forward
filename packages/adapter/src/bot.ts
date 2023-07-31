@@ -75,7 +75,6 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
 
   async initialize() {
     await this.getSelf().then(data => Object.assign(this, data))
-      .then(() => this.online(), error => this.offline(error))
   }
 }
 
