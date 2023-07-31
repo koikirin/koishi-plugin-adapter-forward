@@ -1,4 +1,4 @@
-import { Context, Logger, Schema, Bot, Dict, defineProperty, clone, Awaitable } from '@satorijs/satori'
+import { Context, Schema, Bot } from '@satorijs/satori'
 import { WsClient, WsServer } from './ws'
 import { ForwardBot } from './bot'
 

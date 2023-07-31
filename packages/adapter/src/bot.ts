@@ -6,7 +6,7 @@ const logger = new Logger('forward')
 
 interface Internal {
   _send: <T extends keyof UpPacketsMap>(type: T, payload: UpPacketsMap[T]['payload'], rest?: Partial<UpPacketsMap[T]>, socket?: WebSocket) => Awaitable<void>
-  _call: <T extends keyof UpPacketsMap>(type: T, payload: UpPacketsMap[T]['payload'], rest?: Partial<UpPacketsMap[T]>, socket?: WebSocket) => Awaitable<void>
+  _call: <T extends keyof UpPacketsMap>(type: T, payload: UpPacketsMap[T]['payload'], rest?: Partial<UpPacketsMap[T]>, socket?: WebSocket) => Awaitable<any>
   _methods: string[]
   _update: (bot: Bot, socket?: WebSocket) => Promise<void>
 }

@@ -159,7 +159,7 @@ async function processPacket(client: ForwardHost, socket: WebSocket, packet: Dow
         bot.internal._call = (type, payload, rest = {}, socketArg?) => {
           socketArg ||= socket
           const packet = { type, payload, echo: ++counter, sid: bot.sid, ...rest }
-          logger.debug('send ws %s %o', sid, packet)
+          logger.debug('send ws %o', packet)
           return new Promise((resolve, reject) => {
             listeners[packet.echo] = [resolve, reject]
             setTimeout(() => {

@@ -90,6 +90,11 @@ async function accept(client: ForwardClient, socket?: WebSocket) {
     logger.debug('send ws %o', packet)
     socket.send(JSON.stringify(packet))
   }
+
+  socket.addEventListener('close', () => {
+    if (client.config.protocol === 'ws-reverse' && (client.adapter as WsServer).wsServer.clients.size) return
+    delete client.internal._send
+  })
 }
 
 async function processPacket(client: ForwardClient, socket: WebSocket, packet: UpPackets) {
