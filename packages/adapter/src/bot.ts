@@ -1,4 +1,4 @@
-import { Context, Logger, Bot, defineProperty, Awaitable } from '@satorijs/satori'
+import { Context, Logger, Bot, defineProperty, Awaitable, Universal } from '@satorijs/satori'
 import { WebSocket } from 'ws'
 import { UpPacketsMap } from '@hieuzest/adapter-forward'
 
@@ -43,7 +43,7 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
     })
 
     // Setup all magic methods
-    const methods: Iterable<keyof Bot> = [
+    const methods: Iterable<keyof Universal.Methods> = [
       'sendMessage', 'sendPrivateMessage', 'getMessage', 'getMessageList', 'editMessage', 'deleteMessage',
       'createReaction', 'deleteReaction', 'clearReaction', 'getReactions',
       'getSelf', 'getUser', 'getFriendList', 'deleteFriend',
@@ -55,14 +55,14 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
       'updateCommands',
     ]
     for (const method of methods) {
-      defineProperty(this, method, (...args: any[]) => {
+      defineProperty(this, method, (...args: any) => {
         if (!this.internal._send) {
           logger.error('Bot not connected')
           return
         }
         return this.internal._call('action::bot', {
           action: method,
-          args,
+          args: args,
         })
       })
     }

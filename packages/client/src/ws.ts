@@ -11,6 +11,12 @@ interface SharedConfig<T = 'ws' | 'ws-reverse'> {
   responseTimeout?: number
 }
 
+declare module 'ws' {
+  interface WebSocket {
+    _verified?: boolean
+  }
+}
+
 export class WsClient extends Adapter.WsClient<ForwardClient> {
   protected accept = accept
 
@@ -71,6 +77,7 @@ export namespace WsServer {
 
 async function accept(client: ForwardClient, socket?: WebSocket) {
   socket ||= client.socket
+  let verified = false
 
   socket.addEventListener('message', async ({ data }) => {
     let packet: UpPackets
@@ -85,17 +92,29 @@ async function accept(client: ForwardClient, socket?: WebSocket) {
   })
 
   client.internal._send = (type, payload, rest = {}, socketArg?) => {
-    socketArg ||= socket
-    if (!socketArg) return
-    const packet = { type, payload, ...rest }
-    logger.debug('send ws %o', packet)
-    socket.send(JSON.stringify(packet))
+    if (client.config.protocol === 'ws-reverse' && !socketArg && (client.adapter as WsServer).wsServer.clients.size) {
+      const packet = { type, payload, ...rest }
+      logger.debug('send ws %o', packet)
+        ; (client.adapter as WsServer).wsServer.clients.forEach(
+          (socket: WebSocket) => socket._verified && socket.send(JSON.stringify(packet)
+          ))
+    } else {
+      socketArg ||= socket
+      if (!socketArg || !socketArg._verified) return
+      const packet = { type, payload, ...rest }
+      logger.debug('send ws %o', packet)
+      socket.send(JSON.stringify(packet))
+    }
   }
 
   socket.addEventListener('close', () => {
     if (client.config.protocol === 'ws-reverse' && (client.adapter as WsServer).wsServer.clients.size) return
     delete client.internal._send
   })
+
+  setTimeout(() => {
+    if (socket && !socket._verified) socket.close(1008, 'no authorization')
+  }, 1000 * 10)
 }
 
 async function processPacket(client: ForwardClient, socket: WebSocket, packet: UpPackets) {
@@ -112,24 +131,28 @@ async function processPacket(client: ForwardClient, socket: WebSocket, packet: U
     return client.internal._send(type, peyload, { echo, ...rest }, socket)
   }
 
-  switch (type) {
-    case 'meta::connect': {
-      const { token } = payload
-      if (token !== client.config.token) {
-        socket?.close(1007, 'invalid token')
-        return
-      }
-      client.getInnerBots().forEach(innerBot => client.internal._update(innerBot, socket))
-      break
+  if (type === 'meta::connect') {
+    const { token } = payload
+    if (token !== client.config.token) {
+      socket?.close(1007, 'invalid token')
+      return
     }
+    socket._verified = true
+    client.getInnerBots().forEach(innerBot => client.internal._update(innerBot, socket))
+    return
+  }
 
+  if (!socket._verified) return
+
+  switch (type) {
     case 'action::bot': {
       const bot = client.getInnerBot(sid)
       if (!bot) return unavailable()
       const { action, args } = payload
       logger.debug('call bot', action)
       try {
-        const regularizedArgs = regularizeUniversalMethods(bot, action as any, args)
+        const regularizedArgs = regularizeUniversalMethods(bot, action, args)
+        // @ts-ignore
         send(type, await bot[action](...regularizedArgs), { echo })
       } catch (e) {
         logger.debug(e)

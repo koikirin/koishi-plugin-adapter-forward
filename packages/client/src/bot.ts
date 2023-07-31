@@ -22,11 +22,12 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
     super(ctx, config)
 
     this.internal = Object.create({})
-    defineProperty(this.internal, '_update', (bot, socket, removed = false) => {
+    defineProperty(this.internal, '_update', (bot: Bot, socket: WebSocket, removed = false) => {
       if (!this.internal._send) return
       this.internal._send('meta::status', {
         status: removed ? 'unavailable' : bot?.status,
-        internalMethods: this.internal._methods
+        user: { username: bot.username, avatar: bot.avatar },
+        internalMethods: this.internal._methods,
       }, { sid: bot.sid }, socket)
     })
 
@@ -110,6 +111,7 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
 
   getInnerBot(sid: string) {
     return this.ctx.bots.find(bot => !bot[kForward] && bot.sid === sid)
+    this.getSelf
   }
 }
 

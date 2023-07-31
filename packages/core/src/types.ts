@@ -1,4 +1,4 @@
-import type { Session, Bot } from '@satorijs/satori'
+import type { Session, Bot, Universal } from '@satorijs/satori'
 
 export interface Packet<T extends string, P> {
   type: T
@@ -20,12 +20,19 @@ export interface EventPayload {
 
 export interface StatusPayload {
   status?: Bot.Status | 'unavailable'
+  user?: Partial<Universal.User>
   internalMethods?: string[]
+  universalMethods?: string[]
 }
 
-export interface ActionPayload {
-  action: string
-  args: any[]
+export interface ActionPayload<T extends string = string, M extends any[] = any[]> {
+  action: T
+  args: M
+}
+
+export interface BotActionPayload<T extends keyof Universal.Methods = keyof Universal.Methods> {
+  action: T
+  args: Parameters<Universal.Methods[T]>
 }
 
 export interface UpPacketsMap {
@@ -33,7 +40,7 @@ export interface UpPacketsMap {
     token: string
   }>
   'meta::error': Packet<'meta::error', Error>
-  'action::bot': Packet<'action::bot', ActionPayload>
+  'action::bot': Packet<'action::bot', BotActionPayload>
   'action::internal': Packet<'action::internal', ActionPayload>
 }
 

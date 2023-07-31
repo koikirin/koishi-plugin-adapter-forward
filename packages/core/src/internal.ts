@@ -54,15 +54,7 @@ export async function getInternalMethodKeys(options: {
     host: createCompilerHost()
   })
 
-  function isNodeExported(node: ts.Node): boolean {
-    return (
-      (ts.getCombinedModifierFlags(node as ts.Declaration) & ts.ModifierFlags.Export) !== 0 ||
-      (!!node.parent && node.parent.kind === ts.SyntaxKind.SourceFile)
-    );
-  }
-
   function visit(node: ts.Node) {
-    if (!isNodeExported(node)) return
     if ((ts.isInterfaceDeclaration(node) || ts.isClassDeclaration(node)) && node.name) {
       if (node.name.text === 'Internal') {
         node.forEachChild(method => {
@@ -72,6 +64,7 @@ export async function getInternalMethodKeys(options: {
         })
       }
     }
+    node.forEachChild(visit)
   }
 
   const result = []

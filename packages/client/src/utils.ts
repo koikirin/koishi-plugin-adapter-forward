@@ -1,8 +1,8 @@
-import { h, Dict, Bot, Universal } from '@satorijs/satori'
+import { Bot, Universal } from '@satorijs/satori'
 
 export function regularizeUniversalMethods<K extends keyof Universal.Methods>(
   bot: Bot, action: K, args: Parameters<Universal.Methods[K]>
-) {
+): Parameters<Universal.Methods[K]> {
   switch (action) {
     case 'sendMessage': {
       // @ts-ignore

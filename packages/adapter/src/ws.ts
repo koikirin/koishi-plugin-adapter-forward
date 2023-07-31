@@ -177,7 +177,7 @@ async function processPacket(client: ForwardHost, socket: WebSocket, packet: Dow
         }
       }
 
-      if (payload.status) {
+      if (payload.status && payload.status !== bot.status) {
         switch (payload.status) {
           case 'online':
             await bot.initialize()
@@ -188,6 +188,9 @@ async function processPacket(client: ForwardHost, socket: WebSocket, packet: Dow
           default:
             bot.status = payload.status
         }
+      }
+      if (bot && payload.user) {
+        Object.assign(bot, payload.user)
       }
       if (bot && payload.internalMethods) {
         bot._internalMethods = payload.internalMethods
