@@ -91,15 +91,6 @@ export function accept(client: ForwardHost, socket?: WebSocket) {
 
   const connectPacket: UpPackets = { type: 'meta::connect', payload: { token: client.config.token } }
   socket.send(JSON.stringify(connectPacket))
-
-  // socket.addEventListener('close', () => {
-  //   delete bot.internal._send
-  //   clearTimeout(timeout)
-  // })
-
-  // const timeout = setTimeout(() => {
-  //   if (!bot.internal?._send) bot.socket?.close()
-  // }, 10 * 1000)
 }
 
 async function processPacket(client: ForwardHost, socket: WebSocket, packet: DownPackets) {
@@ -124,10 +115,8 @@ async function processPacket(client: ForwardHost, socket: WebSocket, packet: Dow
     }
 
     case 'meta::event': {
-      if (!bot) {
-        logger.warn('Bot %s is still connecting', sid)
-        return
-      }
+      // This occur mostly when disconnect but events are just came
+      if (!bot) return
       const { session: sessionPayload, payload: internalPayload } = payload
       const session = bot.session()
       defineProperty(session, kForward, true)

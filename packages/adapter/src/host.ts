@@ -67,7 +67,7 @@ export namespace ForwardHost {
 
 function parsePlatform(sid: string) {
   let platform: string, selfId: string
-  const index = sid.indexOf(':', sid.startsWith('sandbox:') ? 8 : 0)
+  const index = sid.indexOf(':')
   platform = sid.slice(0, index)
   selfId = sid.slice(index + 1)
   return [platform, selfId]

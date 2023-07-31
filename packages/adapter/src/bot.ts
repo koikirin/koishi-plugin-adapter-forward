@@ -42,7 +42,7 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
       },
     })
 
-    // Setup all magic methods
+    // Setup all universal methods
     const methods: Iterable<keyof Universal.Methods> = [
       'sendMessage', 'sendPrivateMessage', 'getMessage', 'getMessageList', 'editMessage', 'deleteMessage',
       'createReaction', 'deleteReaction', 'clearReaction', 'getReactions',
