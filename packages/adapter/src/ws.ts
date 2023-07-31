@@ -180,6 +180,7 @@ async function processPacket(client: ForwardHost, socket: WebSocket, packet: Dow
       if (payload.status && payload.status !== bot.status) {
         switch (payload.status) {
           case 'online':
+            bot.status = 'online'
             await bot.initialize()
             break
           case 'unavailable':
