@@ -108,7 +108,7 @@ async function processPacket(client: ForwardHost, socket: WebSocket, packet: Dow
   if (echo in listeners) {
     const [resolve, reject] = listeners[echo]
     if (type === 'meta::error') {
-      reject(new Error(payload.msg))
+      reject(payload)
     } else {
       resolve(payload)
     }
@@ -124,6 +124,10 @@ async function processPacket(client: ForwardHost, socket: WebSocket, packet: Dow
     }
 
     case 'meta::event': {
+      if (!bot) {
+        logger.warn('Bot %s is still connecting', sid)
+        return
+      }
       const { session: sessionPayload, payload: internalPayload } = payload
       const session = bot.session()
       defineProperty(session, kForward, true)

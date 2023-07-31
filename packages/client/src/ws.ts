@@ -2,6 +2,7 @@ import { Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer, Awaita
 import { WebSocket } from 'ws'
 import { UpPackets } from '@hieuzest/adapter-forward'
 import { ForwardClient } from './bot'
+import { regularizeUniversalMethods } from './utils'
 
 const logger = new Logger('forward-client')
 
@@ -128,9 +129,10 @@ async function processPacket(client: ForwardClient, socket: WebSocket, packet: U
       const { action, args } = payload
       logger.debug('call bot', action)
       try {
-        send(type, await bot[action](args), { echo })
+        const regularizedArgs = regularizeUniversalMethods(bot, action as any, args)
+        send(type, await bot[action](...regularizedArgs), { echo })
       } catch (e) {
-        // logger.error(e)
+        logger.debug(e)
         send('meta::error', {
           code: -2,
           msg: `Bot Action fail: ${action}`,
@@ -145,9 +147,9 @@ async function processPacket(client: ForwardClient, socket: WebSocket, packet: U
       const { action, args } = payload
       logger.debug('call internal', action)
       try {
-        send(type, await bot.internal[action](args), { echo })
+        send(type, await bot.internal[action](...args), { echo })
       } catch (e) {
-        // logger.error(e)
+        logger.debug(e)
         send('meta::error', {
           code: -3,
           msg: `Internal Action fail: ${action}`,
