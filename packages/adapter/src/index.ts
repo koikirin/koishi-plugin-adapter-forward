@@ -1,3 +1,3 @@
-import { ForwardBot } from './bot'
+import { ForwardHost } from './host'
 
-export default ForwardBot
+export default ForwardHost

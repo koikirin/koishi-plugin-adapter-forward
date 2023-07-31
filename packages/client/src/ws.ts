@@ -1,6 +1,7 @@
-import { Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer } from '@satorijs/satori'
+import { Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer, Awaitable } from '@satorijs/satori'
+import { WebSocket } from 'ws'
+import { UpPackets } from '@hieuzest/adapter-forward'
 import { ForwardClient } from './bot'
-import { RequestPackets, ResponsePackets } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward-client')
 
@@ -14,12 +15,7 @@ export class WsClient extends Adapter.WsClient<ForwardClient> {
 
   async prepare(bot: ForwardClient<ForwardClient.BaseConfig & ForwardClient.AdvancedConfig & WsClient.Config>) {
     const http = this.ctx.http.extend(bot.config)
-    console.log(bot.config)
-    return http.ws(bot.config.endpoint, {
-      headers: {
-        'x-forward-selfid': bot.innerSid
-      }
-    })
+    return http.ws(bot.config.endpoint)
   }
 }
 
@@ -45,12 +41,7 @@ export class WsServer extends Adapter.Server<ForwardClient<ForwardClient.BaseCon
     const { path = '/forward' } = bot.config as WsServer.Config
     this.wsServer = ctx.router.ws(path, (socket, { headers }) => {
       logger.debug('connected')
-
-      const sid = headers['x-forward-selfid']?.toString()
-      const bot = ctx.bots.find(b => b instanceof ForwardClient && b.innerSid === sid) as ForwardClient
-      if (!bot) return socket.close(1008, 'invalid x-self-id')
-      bot.socket = socket
-      accept(bot)
+      accept(bot, socket)
     })
 
     ctx.on('dispose', () => {
@@ -77,19 +68,11 @@ export namespace WsServer {
   }).description('连接设置')
 }
 
-async function accept(bot: ForwardClient) {
-  const unavailable = (echo) => {
-    bot.internal._request({
-      type: 'meta::error', echo,
-      payload: {
-        code: -1,
-        msg: `Bot unavailable`,
-      },
-    })
-  }
+async function accept(client: ForwardClient, socket?: WebSocket) {
+  socket ||= client.socket
 
-  bot.socket.addEventListener('message', async ({ data }) => {
-    let packet: ResponsePackets
+  socket.addEventListener('message', async ({ data }) => {
+    let packet: UpPackets
     try {
       packet = JSON.parse(data.toString())
     } catch (error) {
@@ -97,62 +80,75 @@ async function accept(bot: ForwardClient) {
     }
 
     logger.debug('receive %o', packet)
+    await processPacket(client, socket, packet)
+  })
 
-    const { type, payload, echo } = packet
+  client.internal._send = (type, payload, rest = {}, socketArg?) => {
+    socketArg ||= socket
+    if (!socketArg) return
+    const packet = { type, payload, ...rest }
+    logger.debug('send ws %o', packet)
+    socket.send(JSON.stringify(packet))
+  }
+}
 
-    if (type === 'meta::connect') {
-      let { name, version } = payload
-      logger.info('Initialized with protocol %s %s', name, version)
-      bot.internal._update()
-    } else if (type === 'action::internal') {
-      if (!bot.getInnerBot()) return unavailable(echo)
-      const { action, args } = payload
-      logger.debug('call internal', action)
-      try {
-        bot.internal._request({
-          type, echo,
-          payload: await bot.getInnerBot().internal[action](args),
-        })
-      } catch (e) {
-        logger.error(e)
-        bot.internal._request({
-          type: 'meta::error', echo,
-          payload: {
-            code: -2,
-            msg: `Internal Action fail: ${action}`,
-          },
-        })
+async function processPacket(client: ForwardClient, socket: WebSocket, packet: UpPackets) {
+  const { type, payload, sid, echo } = packet
+
+  const unavailable = () => {
+    send('meta::error', {
+      code: -1,
+      msg: `Bot unavailable`,
+    }, { echo })
+  }
+
+  const send: typeof client.internal._send = (type, peyload, rest = {}, socket?) => {
+    return client.internal._send(type, peyload, { echo, ...rest }, socket)
+  }
+
+  switch (type) {
+    case 'meta::connect': {
+      const { token } = payload
+      if (token !== client.config.token) {
+        socket?.close(1007, 'invalid token')
+        return
       }
-    } else if (type === 'action::bot') {
-      if (!bot.getInnerBot()) return unavailable(echo)
+      client.getInnerBots().forEach(innerBot => client.internal._update(innerBot, socket))
+      break
+    }
+
+    case 'action::bot': {
+      const bot = client.getInnerBot(sid)
+      if (!bot) return unavailable()
       const { action, args } = payload
       logger.debug('call bot', action)
       try {
-        bot.internal._request({
-          type, echo,
-          payload: await bot.getInnerBot()[action](args),
-        })
+        send(type, await bot[action](args), { echo })
       } catch (e) {
-        logger.error(e)
-        bot.internal._request({
-          type: 'meta::error', echo,
-          payload: {
-            code: -2,
-            msg: `Bot Action fail: ${action}`,
-          }
-        })
+        // logger.error(e)
+        send('meta::error', {
+          code: -2,
+          msg: `Bot Action fail: ${action}`,
+        }, { echo })
       }
+      break
     }
-  })
 
-  bot.internal._request = <P extends RequestPackets>(packet: P) => {
-    if (!bot.socket) return
-    logger.debug('send ws %o', packet)
-    bot.socket.send(JSON.stringify(packet))
+    case 'action::internal': {
+      const bot = client.getInnerBot(sid)
+      if (!bot) return unavailable()
+      const { action, args } = payload
+      logger.debug('call internal', action)
+      try {
+        send(type, await bot.internal[action](args), { echo })
+      } catch (e) {
+        // logger.error(e)
+        send('meta::error', {
+          code: -3,
+          msg: `Internal Action fail: ${action}`,
+        }, { echo })
+      }
+      break
+    }
   }
-
-  bot.internal._request({
-    type: 'meta::connect',
-    payload: { token: bot.config.token }
-  })
 }

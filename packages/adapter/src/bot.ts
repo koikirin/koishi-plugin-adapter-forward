@@ -1,13 +1,15 @@
-import { Context, Logger, Schema, Bot, defineProperty, clone } from '@satorijs/satori'
-import { WsClient, WsServer } from './ws'
-import { ResponsePackets, getInternalMethodKeys } from '@hieuzest/adapter-forward'
+import { Context, Logger, Bot, defineProperty, Awaitable } from '@satorijs/satori'
+import { WebSocket } from 'ws'
+import { UpPacketsMap } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward')
 
 interface Internal {
-  _request: <P extends ResponsePackets>(packet: P, callback?: boolean) => Promise<ResponsePackets>
+  _send: <T extends keyof UpPacketsMap>(type: T, payload: UpPacketsMap[T]['payload'], rest?: Partial<UpPacketsMap[T]>, socket?: WebSocket) => Awaitable<void>
+  _call: <T extends keyof UpPacketsMap>(type: T, payload: UpPacketsMap[T]['payload'], rest?: Partial<UpPacketsMap[T]>, socket?: WebSocket) => Awaitable<void>
+  _methods: string[]
+  _update: (bot: Bot, socket?: WebSocket) => Promise<void>
 }
-
 const kForward = Symbol.for('adapter-forward')
 
 export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends Bot<T> {
@@ -19,12 +21,6 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
     super(ctx, config)
     ForwardBot.prototype.platform = config.platform
     this.selfId = config.selfId
-
-    if (config.protocol === 'ws') {
-      ctx.plugin(WsClient, this)
-    } else if (config.protocol === 'ws-reverse') {
-      ctx.plugin(WsServer, this)
-    }
 
     this.internal = new Proxy({} as Internal, {
       set(target, p, newValue, receiver) {
@@ -38,12 +34,9 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
           return
         }
         if (this._internalMethods?.includes(p)) {
-          return (...args: any[]) => target._request({
-            type: 'action::internal',
-            payload: {
-              action: p,
-              args,
-            }
+          return (...args: any[]) => target._call('action::internal', {
+            action: p,
+            args,
           })
         }
       },
@@ -63,35 +56,21 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
     ]
     for (const method of methods) {
       defineProperty(this, method, (...args: any[]) => {
-        if (!this.internal._request) {
+        if (!this.internal._send) {
           logger.error('Bot not connected')
           return
         }
-        return this.internal._request({
-          type: 'action::bot',
-          payload: {
-            action: method,
-            args,
-          }
+        return this.internal._call('action::bot', {
+          action: method,
+          args,
         })
       })
     }
-  }
 
-  async start() {
-    await super.start()
-    if (this.config.forwardAdapterModuleName) try {
-      this._internalMethods = await getInternalMethodKeys({
-        modulePath: this.config.forwardAdapterModuleName
-      })
-      logger.debug('internalMethods', this._internalMethods)
-    } catch (e) {
-      logger.warn('Fail to load internal keys, maybe lack of ts or invalid config')
+    if (config.callback) {
+      config.callback(this)
+      delete config.callback
     }
-  }
-
-  async stop() {
-    await super.stop()
   }
 
   async initialize() {
@@ -101,37 +80,9 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
 }
 
 export namespace ForwardBot {
-  export interface BaseConfig extends Bot.Config {
-    platform: string
-    selfId: string
-    token?: string
+  export interface Config extends Bot.Config {
+    callback: (bot: ForwardBot) => Awaitable<void>
   }
-
-  export const BaseConfig: Schema<BaseConfig> = Schema.object({
-    platform: Schema.string().required(),
-    selfId: Schema.string().required(),
-    token: Schema.string().role('secret'),
-    protocol: Schema.union(['ws', 'ws-reverse'] as const).default('ws-reverse'),
-  })
-
-  export interface AdvancedConfig {
-    originalProtocolName?: string
-    forwardAdapterModuleName?: string
-  }
-
-  export const AdvancedConfig: Schema<AdvancedConfig> = Schema.object({
-    originalProtocolName: Schema.string().description('Another name to call internal from session'),
-    forwardAdapterModuleName: Schema.string().description('Requires typescript as dependency'),
-  }).description('高级设置')
-
-  export type Config = BaseConfig & AdvancedConfig & (WsServer.Config | WsClient.Config)
-
-  export const Config: Schema<Config> = Schema.intersect([
-    BaseConfig,
-    AdvancedConfig,
-    Schema.union([
-      WsServer.Config,
-      WsClient.Config,
-    ]),
-  ])
 }
+
+export default ForwardBot

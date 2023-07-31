@@ -1,8 +1,9 @@
 import { Adapter, Context, Logger, Schema, Time, WebSocketLayer, Quester } from '@satorijs/satori'
-import { ForwardBot } from './bot'
 import { defineProperty } from 'cosmokit'
+import { WebSocket } from 'ws'
+import { UpPackets, DownPackets } from '@hieuzest/adapter-forward'
+import { ForwardHost } from './host'
 import { parseElementObjects, TimeoutError } from './utils'
-import { RequestPackets, ResponsePackets } from '@hieuzest/adapter-forward'
 
 const logger = new Logger('forward')
 const kForward = Symbol.for('adapter-forward')
@@ -12,16 +13,12 @@ interface SharedConfig<T = 'ws' | 'ws-reverse'> {
   responseTimeout?: number
 }
 
-export class WsClient extends Adapter.WsClient<ForwardBot> {
+export class WsClient extends Adapter.WsClient<ForwardHost> {
   protected accept = accept
 
-  async prepare(bot: ForwardBot<ForwardBot.BaseConfig & ForwardBot.AdvancedConfig & WsClient.Config>) {
+  async prepare(bot: ForwardHost<ForwardHost.BaseConfig & WsClient.Config>) {
     const http = this.ctx.http.extend(bot.config)
-    return http.ws(bot.config.endpoint, {
-      headers: {
-        'x-forward-selfid': `${bot.config.platform}:${bot.config.selfId}`
-      }
-    })
+    return http.ws(bot.config.endpoint)
   }
 }
 
@@ -38,21 +35,16 @@ export namespace WsClient {
   ])
 }
 
-export class WsServer extends Adapter.Server<ForwardBot<ForwardBot.BaseConfig & ForwardBot.AdvancedConfig & WsServer.Config>> {
+export class WsServer extends Adapter.Server<ForwardHost<ForwardHost.BaseConfig & WsServer.Config>> {
   public wsServer?: WebSocketLayer
 
-  constructor(ctx: Context, bot: ForwardBot) {
+  constructor(ctx: Context, bot: ForwardHost) {
     super()
 
     const { path = '/forward' } = bot.config as WsServer.Config
     this.wsServer = ctx.router.ws(path, (socket, { headers }) => {
       logger.debug('connected')
-
-      const sid = headers['x-forward-selfid']?.toString()
-      const bot = ctx.bots.find(b => b instanceof ForwardBot && b.sid === sid) as ForwardBot
-      if (!bot) return socket.close(1008, 'invalid x-self-id')
-      bot.socket = socket
-      accept(bot)
+      accept(bot, socket)
     })
 
     ctx.on('dispose', () => {
@@ -61,7 +53,7 @@ export class WsServer extends Adapter.Server<ForwardBot<ForwardBot.BaseConfig & 
     })
   }
 
-  async stop(bot: ForwardBot) {
+  async stop(bot: ForwardHost) {
     bot.socket?.close()
     bot.socket = null
   }
@@ -80,94 +72,123 @@ export namespace WsServer {
 }
 
 let counter = 0
-const listeners: Record<number, [(response: ResponsePackets['payload']) => void, (reason: any) => void]> = {}
+const listeners: Record<number, [(response: DownPackets['payload']) => void, (reason: any) => void]> = {}
 
-export function accept(bot: ForwardBot) {
-  bot.socket.addEventListener('message', ({ data }) => {
-    let parsed: any
+export function accept(client: ForwardHost, socket?: WebSocket) {
+  socket ||= client.socket
+
+  socket.addEventListener('message', async ({ data }) => {
+    let packet: DownPackets
     try {
-      parsed = JSON.parse(data.toString())
+      packet = JSON.parse(data.toString())
     } catch (error) {
       return logger.warn('cannot parse message', data)
     }
 
-    logger.debug('receive %o', parsed)
+    logger.debug('receive %o', packet)
+    await processPacket(client, socket, packet)
+  })
 
-    const { type, payload, echo }: RequestPackets = parsed
+  const connectPacket: UpPackets = { type: 'meta::connect', payload: { token: client.config.token } }
+  socket.send(JSON.stringify(connectPacket))
 
-    if (echo in listeners) {
-      const [resolve, reject] = listeners[parsed.echo]
-      if (type === 'meta::error') {
-        reject(new Error(payload.msg))
-      } else {
-        resolve(payload)
-      }
-      delete listeners[parsed.echo]
-      return
+  // socket.addEventListener('close', () => {
+  //   delete bot.internal._send
+  //   clearTimeout(timeout)
+  // })
+
+  // const timeout = setTimeout(() => {
+  //   if (!bot.internal?._send) bot.socket?.close()
+  // }, 10 * 1000)
+}
+
+async function processPacket(client: ForwardHost, socket: WebSocket, packet: DownPackets) {
+  const { type, payload, sid, echo } = packet
+
+  if (echo in listeners) {
+    const [resolve, reject] = listeners[echo]
+    if (type === 'meta::error') {
+      reject(new Error(payload.msg))
+    } else {
+      resolve(payload)
+    }
+    delete listeners[echo]
+    return
+  }
+
+  let bot = client.getBot(sid)
+
+  switch (type) {
+    case 'meta::connect': {
+      break
     }
 
-    if (type === 'meta::connect') {
-      const { token } = payload
-      if (token !== bot.config.token) {
-        bot.socket?.close(1007, 'invalid token')
-        return
-      }
-      clearTimeout(timeout)
-
-      bot.internal._request = ({ type, payload }, callback: boolean = true) => {
-        const packet = { type, payload, echo: ++counter }
-        logger.debug('send ws %o', packet)
-        return new Promise((resolve, reject) => {
-          if (callback) {
-            listeners[packet.echo] = [resolve, reject]
-            setTimeout(() => {
-              delete listeners[packet.echo]
-              reject(new TimeoutError(payload, type))
-            }, bot.config.responseTimeout)
-          }
-          bot.socket.send(JSON.stringify(packet), (error) => {
-            if (error) reject(error)
-          })
-        })
-      }
-      bot.internal._request({
-        type: 'meta::connect',
-        payload: { name: 'adapter-forward', version: '1.2.0' }
-      }, false)
-      bot.initialize()
-    } else if (type === 'meta::event') {
+    case 'meta::event': {
       const { session: sessionPayload, payload: internalPayload } = payload
       const session = bot.session()
       defineProperty(session, kForward, true)
       Object.assign(session, sessionPayload)
       defineProperty(session, bot.platform, Object.create(bot.internal))
       Object.assign(session[bot.platform], internalPayload)
-      if (bot.config.originalProtocolName) {
-        defineProperty(session, bot.config.originalProtocolName, Object.create(bot.internal))
-        Object.assign(session[bot.config.originalProtocolName], internalPayload)
-      }
       session.elements = parseElementObjects(session.elements)
       session.content = session.elements.join('')
 
       bot.dispatch(session)
-    } else if (type === 'meta::status') {
-      if (payload.status) {
-        if (payload.status === 'unavailable') bot.status = 'offline'
-        else bot.status = payload.status
+      break
+    }
+
+    case 'meta::status': {
+      if (!bot) {
+        bot = await client.addBot(sid)
+        logger.info('Connect to bot', bot.sid)
+        socket.addEventListener('close', () => client.removeBot(bot))
+
+        bot.internal._send = (type, payload, rest = {}, socketArg?) => {
+          socketArg ||= socket
+          if (!socketArg) return
+          const packet = { type, payload, sid: bot.sid, ...rest }
+          logger.debug('send ws %o', packet)
+          return new Promise((resolve, reject) => {
+            socket.send(JSON.stringify(packet), (error) => {
+              if (error) reject(error)
+            })
+            return resolve()
+          })
+        }
+
+        bot.internal._call = (type, payload, rest = {}, socketArg?) => {
+          socketArg ||= socket
+          const packet = { type, payload, echo: ++counter, sid: bot.sid, ...rest }
+          logger.debug('send ws %s %o', sid, packet)
+          return new Promise((resolve, reject) => {
+            listeners[packet.echo] = [resolve, reject]
+            setTimeout(() => {
+              delete listeners[packet.echo]
+              reject(new TimeoutError(payload, type))
+            }, client.config.responseTimeout)
+            socket.send(JSON.stringify(packet), (error) => {
+              if (error) reject(error)
+            })
+          })
+        }
       }
-      if (payload.internalMethods) {
+
+      if (payload.status) {
+        switch (payload.status) {
+          case 'online':
+            await bot.initialize()
+            break
+          case 'unavailable':
+            client.removeBot(bot)
+            break
+          default:
+            bot.status = payload.status
+        }
+      }
+      if (bot && payload.internalMethods) {
         bot._internalMethods = payload.internalMethods
         logger.debug('internalMethods detected', bot._internalMethods)
       }
     }
-  })
-
-  bot.socket.addEventListener('close', () => {
-    delete bot.internal._request
-    clearTimeout(timeout)
-  })
-
-  const timeout = setTimeout(() => {
-    if (!bot.internal?._request) bot.socket?.close()
-  }, 10 * 1000)
+  }
 }

@@ -4,25 +4,13 @@ export interface Packet<T extends string, P> {
   type: T
   payload?: P
   echo?: number
+  sid?: string
 }
 
-export namespace Connect {
-  export type Request = Packet<'meta::connect', {
-    token: string
-  }>
-
-  export type Response = Packet<'meta::connect', {
-    version: string
-    name: string
-  }>
-}
-
-export type Connect = Connect.Request | Connect.Response
-
-export type Error = Packet<'meta::error', {
+export interface Error {
   code: number
   msg: string
-}>
+}
 
 export interface EventPayload {
   event: string
@@ -30,48 +18,36 @@ export interface EventPayload {
   payload: any
 }
 
-export type EventPacket = Packet<'meta::event', EventPayload>
-
 export interface StatusPayload {
   status?: Bot.Status | 'unavailable'
   internalMethods?: string[]
 }
-
-export type StatusPacket = Packet<'meta::status', StatusPayload>
 
 export interface ActionPayload {
   action: string
   args: any[]
 }
 
-export namespace BotAction {
-  export type Request = Packet<'action::bot', ActionPayload>
-
-  export type Response = Packet<'action::bot', any>
+export interface UpPacketsMap {
+  'meta::connect': Packet<'meta::connect', {
+    token: string
+  }>
+  'meta::error': Packet<'meta::error', Error>
+  'action::bot': Packet<'action::bot', ActionPayload>
+  'action::internal': Packet<'action::internal', ActionPayload>
 }
 
-export type BotActionPacket = BotAction.Request | BotAction.Response
-
-export namespace InternalAction {
-  export type Request = Packet<'action::internal', ActionPayload>
-
-  export type Response = Packet<'action::internal', any>
+export interface DownPacketsMap {
+  'meta::connect': Packet<'meta::connect', {
+    version: string
+    name: string
+  }>
+  'meta::error': Packet<'meta::error', Error>
+  'meta::event': Packet<'meta::event', EventPayload>
+  'meta::status': Packet<'meta::status', StatusPayload>
+  'action::bot': Packet<'action::bot', any>
+  'action::internal': Packet<'action::internal', any>
 }
 
-export type InternalActionPacket = InternalAction.Request | InternalAction.Response
-
-export type RequestPackets =
-  | Connect.Request
-  | EventPacket
-  | StatusPacket
-  | BotAction.Request
-  | InternalAction.Request
-  | Error
-
-export type ResponsePackets =
-  | Connect.Response
-  | BotAction.Response
-  | InternalAction.Response
-  | Error
-
-export type Packets = RequestPackets | ResponsePackets
+export type UpPackets = UpPacketsMap[keyof UpPacketsMap]
+export type DownPackets = DownPacketsMap[keyof DownPacketsMap]
