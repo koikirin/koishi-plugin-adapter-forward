@@ -1,4 +1,4 @@
-import { Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer, Awaitable } from '@satorijs/satori'
+import { Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer } from '@satorijs/satori'
 import { WebSocket } from 'ws'
 import { UpPackets } from '@hieuzest/adapter-forward'
 import { ForwardClient } from './bot'

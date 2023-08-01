@@ -24,6 +24,11 @@
     "test:json": "shx rm -rf coverage && c8 -r json yarn test",
     "test:html": "shx rm -rf coverage && c8 -r html yarn test"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koikirin/koishi-plugin-adapter-forward.git"
+  },
+  "homepage": "https://github.com/koikirin/koishi-plugin-adapter-forward",
   "keywords": [
     "chatbot",
     "koishi",

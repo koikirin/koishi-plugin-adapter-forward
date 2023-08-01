@@ -1,15 +1,22 @@
 {
   "name": "@hieuzest/koishi-plugin-adapter-forward",
   "description": "Forward your adapters",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
     "dist"
   ],
+  "author": "Hieuzest <girkirin@hotmail.com>",
   "license": "MIT",
   "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koikirin/koishi-plugin-adapter-forward.git",
+    "directory": "packages/adapter"
+  },
+  "homepage": "https://github.com/koikirin/koishi-plugin-adapter-forward",
   "keywords": [
     "chatbot",
     "koishi",
