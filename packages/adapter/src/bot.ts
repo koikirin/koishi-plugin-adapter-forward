@@ -1,6 +1,7 @@
 import { Context, Logger, Bot, defineProperty, Awaitable, Universal } from '@satorijs/satori'
 import { WebSocket } from 'ws'
 import { UpPacketsMap } from '@hieuzest/adapter-forward'
+import { prepareUniversalMethods } from './utils'
 
 const logger = new Logger('forward')
 
@@ -55,14 +56,14 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
       'updateCommands',
     ]
     for (const method of methods) {
-      defineProperty(this, method, (...args: any) => {
+      defineProperty(this, method, async (...args: any) => {
         if (!this.internal._send) {
           logger.error('Bot not connected')
           return
         }
-        return this.internal._call('action::bot', {
+        return await this.internal._call('action::bot', {
           action: method,
-          args: args,
+          args: await prepareUniversalMethods(this, method, args),
         })
       })
     }
@@ -83,5 +84,7 @@ export namespace ForwardBot {
     callback: (bot: ForwardBot) => Awaitable<void>
   }
 }
+
+ForwardBot.prototype[kForward] = true
 
 export default ForwardBot

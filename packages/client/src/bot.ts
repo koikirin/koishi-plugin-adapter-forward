@@ -3,6 +3,7 @@ import { Context, Schema, Bot, Awaitable, defineProperty, Session, Logger } from
 import { WebSocket } from 'ws'
 import { DownPacketsMap, getInternalMethodKeys } from '@hieuzest/adapter-forward'
 import { WsClient, WsServer } from './ws'
+import { prepareSession } from './utils'
 
 const logger = new Logger('forward-client')
 
@@ -89,12 +90,12 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
     })
   }
 
-  dispatchInner(session: Session) {
+  async dispatchInner(session: Session) {
     if (!this.internal._send) return
     if (!session[kForward] && this.validateSid(session.bot))
       this.internal?._send('meta::event', {
         event: session.type,
-        session: session,
+        session: await prepareSession(session),
         payload: session[session.platform],
       }, { sid: session.sid })
   }
@@ -111,7 +112,6 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
 
   getInnerBot(sid: string) {
     return this.ctx.bots.find(bot => !bot[kForward] && bot.sid === sid)
-    this.getSelf
   }
 }
 

@@ -1,4 +1,6 @@
-import { Bot, Universal } from '@satorijs/satori'
+import { Bot, Universal, h, Session, clone, arrayBufferToBase64 } from '@satorijs/satori'
+import { readFile } from 'fs/promises'
+import mime from 'mime'
 
 export function regularizeUniversalMethods<K extends keyof Universal.Methods>(
   bot: Bot, action: K, args: Parameters<Universal.Methods[K]>
@@ -17,4 +19,30 @@ export function regularizeUniversalMethods<K extends keyof Universal.Methods>(
     }
   }
   return args
+}
+
+export async function prepareElement(bot: Bot, element: h) {
+  if ((element.attrs?.url as string)?.startsWith('file://')) {
+    const url = new URL(element.attrs.url)
+    const mimetype = mime.getType(url.pathname)
+    const buffer = Buffer.from(await readFile(url))
+    const base64 = arrayBufferToBase64(buffer)
+
+    return h(element.type, {
+      ...element.attrs,
+      url: element.attrs.url = `data:${mimetype};base64,${base64}`
+    }, await prepareElements(bot, element.children))
+  } else {
+    return h(element.type, element.attrs, await prepareElements(bot, element.children))
+  }
+}
+
+async function prepareElements(bot: Bot, elements: h[]): Promise<h[]> {
+  return Promise.all(elements.map(el => prepareElement(bot, el)))
+}
+
+export async function prepareSession(original: Session) {
+  const session = clone(original)
+  session.elements = await prepareElements(session.bot, session.elements)
+  return session
 }
