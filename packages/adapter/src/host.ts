@@ -1,8 +1,7 @@
 import { Context, Schema, Bot } from '@satorijs/satori'
 import { WsClient, WsServer } from './ws'
 import { ForwardBot } from './bot'
-
-const kForward = Symbol.for('adapter-forward')
+import { kForward } from '.'
 
 export class ForwardHost<T extends ForwardHost.Config = ForwardHost.Config> extends Bot<T> {
   constructor(ctx: Context, config: T) {
@@ -30,10 +29,10 @@ export class ForwardHost<T extends ForwardHost.Config = ForwardHost.Config> exte
     return this.ctx.bots.find(bot => bot[kForward] && bot.sid === sid) as any
   }
 
-  async addBot(sid: string): Promise<ForwardBot> {
+  async addBot(sid: string, rest: Partial<ForwardBot.Config>): Promise<ForwardBot> {
     const [platform, selfId] = parsePlatform(sid)
     return new Promise((resolve) => {
-      this.ctx.plugin(ForwardBot, { platform, selfId, callback: resolve })
+      this.ctx.plugin(ForwardBot, { platform, selfId, callback: resolve, ...rest })
     })
   }
 

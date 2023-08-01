@@ -1,20 +1,27 @@
 import { } from 'koishi'
-import { Context, Schema, Bot, Awaitable, defineProperty, Session, Logger } from '@satorijs/satori'
+import { Context, Schema, Bot, Awaitable, defineProperty, Session, Logger, Universal } from '@satorijs/satori'
 import { WebSocket } from 'ws'
-import { DownPacketsMap, getInternalMethodKeys } from '@hieuzest/adapter-forward'
+import { DownPacketsMap, getInternalMethodKeys, universalMethods } from '@hieuzest/adapter-forward'
 import { WsClient, WsServer } from './ws'
 import { prepareSession } from './utils'
 
 const logger = new Logger('forward-client')
+const kDispath = Symbol('adapter-forward/dispatch')
+const kForward = Symbol.for('adapter-forward')
+const kUniversalMethods = Symbol.for('adapter-forward/universalMethods')
+const kInternalMethods = Symbol.for('adapter-forward/internalMethods')
 
 interface Internal {
   _send: <T extends keyof DownPacketsMap>(type: T, payload: DownPacketsMap[T]['payload'], rest?: Partial<DownPacketsMap[T]>, socket?: WebSocket) => Awaitable<void>
-  _methods: string[]
   _update: (bot: Bot, socket?: WebSocket, removed?: boolean) => Promise<void>
 }
 
-const kForward = Symbol.for('adapter-forward')
-const kDispath = Symbol('dispatch')
+declare module '@satorijs/satori' {
+  interface Bot {
+    [kUniversalMethods]?: (keyof Universal.Methods)[]
+    [kInternalMethods]?: string[]
+  }
+}
 
 export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config> extends Bot<T> {
   internal: Internal
@@ -28,7 +35,8 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
       this.internal._send('meta::status', {
         status: removed ? 'unavailable' : bot?.status,
         user: { username: bot.username, avatar: bot.avatar },
-        internalMethods: this.internal._methods,
+        universalMethods: bot[kUniversalMethods],
+        internalMethods: bot[kInternalMethods],
       }, { sid: bot.sid }, socket)
     })
 
@@ -51,12 +59,16 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
         }
         defineProperty(bot, kDispath, original)
 
+        if (config.loadUniversalMethods) {
+          bot[kUniversalMethods] = universalMethods.filter(key => bot[key])
+        }
+
         if (config.loadInternalMethods) {
           getInternalMethodKeys({
             filePath: ctx.loader.cache[ctx.loader.keyFor(bot.ctx.runtime.plugin)]
           }).then(methods => {
-            if (methods && methods.length) this.internal._methods = methods
-            else delete this.internal._methods
+            if (methods && methods.length) bot[kInternalMethods] = methods
+            else delete bot[kInternalMethods]
             this.internal._update(bot)
           }).catch(e => logger.warn('failed to load internalMethods', e))
         }
@@ -71,7 +83,6 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
 
     ctx.on('bot-removed', (bot) => {
       if (!bot[kForward] && this.validateSid(bot)) {
-        this.internal._methods = []
         this.internal._update(bot, null, true)
       }
     })
@@ -119,22 +130,24 @@ export namespace ForwardClient {
   export interface BaseConfig extends Bot.Config {
     sids: string[]
     token?: string
-    avoidLoopback: boolean
   }
 
   export const BaseConfig: Schema<BaseConfig> = Schema.object({
     sids: Schema.array(String).default([]),
     token: Schema.string().role('secret'),
     protocol: Schema.union(['ws', 'ws-reverse']).default('ws'),
-    avoidLoopback: Schema.boolean().default(true),
   })
 
   export interface AdvancedConfig {
+    loadUniversalMethods: boolean
     loadInternalMethods: boolean
   }
 
   export const AdvancedConfig: Schema<AdvancedConfig> = Schema.object({
-    loadInternalMethods: Schema.boolean().description('Requires typescript as dependency').default(false),
+    loadUniversalMethods: Schema.boolean()
+      .description('导入SatoriApi列表').default(true),
+    loadInternalMethods: Schema.boolean()
+      .description('导入InternalApi列表(此选项需要typescript依赖)').default(false),
   }).description('高级设置')
 
   export type Config = BaseConfig & AdvancedConfig & (WsServer.Config | WsClient.Config)

@@ -2,6 +2,10 @@ import { h, Dict, Universal, Bot, arrayBufferToBase64 } from '@satorijs/satori'
 import { readFile } from 'fs/promises'
 import mime from 'mime'
 
+export const kForward = Symbol.for('adapter-forward')
+export const kUniversalMethods = Symbol.for('adapter-forward/universalMethods')
+export const kInternalMethods = Symbol.for('adapter-forward/internalMethods')
+
 export class TimeoutError extends Error {
   constructor(args: Dict, url: string) {
     super(`Timeout with request ${url}, args: ${JSON.stringify(args)}`)

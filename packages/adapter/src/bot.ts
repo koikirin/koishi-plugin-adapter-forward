@@ -1,27 +1,32 @@
 import { Context, Logger, Bot, defineProperty, Awaitable, Universal } from '@satorijs/satori'
 import { WebSocket } from 'ws'
-import { UpPacketsMap } from '@hieuzest/adapter-forward'
+import { UpPacketsMap, universalMethods, predefinedUniversalMethods } from '@hieuzest/adapter-forward'
 import { prepareUniversalMethods } from './utils'
+import { kForward, kUniversalMethods, kInternalMethods } from '.'
 
 const logger = new Logger('forward')
 
 interface Internal {
   _send: <T extends keyof UpPacketsMap>(type: T, payload: UpPacketsMap[T]['payload'], rest?: Partial<UpPacketsMap[T]>, socket?: WebSocket) => Awaitable<void>
   _call: <T extends keyof UpPacketsMap>(type: T, payload: UpPacketsMap[T]['payload'], rest?: Partial<UpPacketsMap[T]>, socket?: WebSocket) => Awaitable<any>
-  _methods: string[]
   _update: (bot: Bot, socket?: WebSocket) => Promise<void>
 }
-const kForward = Symbol.for('adapter-forward')
+
+export interface ForwardBot {
+  [kUniversalMethods]?: (keyof Universal.Methods)[]
+  [kInternalMethods]?: string[]
+}
 
 export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends Bot<T> {
   internal: Internal
   [kForward] = true
-  _internalMethods: string[]
 
   constructor(ctx: Context, config: T) {
     super(ctx, config)
     ForwardBot.prototype.platform = config.platform
     this.selfId = config.selfId
+    this[kUniversalMethods] = config.universalMethods
+    this[kInternalMethods] = config.internalMethods
 
     this.internal = new Proxy({} as Internal, {
       set(target, p, newValue, receiver) {
@@ -34,7 +39,7 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
           logger.error('Bot not connected')
           return
         }
-        if (this._internalMethods?.includes(p)) {
+        if (this[kInternalMethods]?.includes(p)) {
           return (...args: any[]) => target._call('action::internal', {
             action: p,
             args,
@@ -43,30 +48,7 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
       },
     })
 
-    // Setup all universal methods
-    const methods: Iterable<keyof Universal.Methods> = [
-      'sendMessage', 'sendPrivateMessage', 'getMessage', 'getMessageList', 'editMessage', 'deleteMessage',
-      'createReaction', 'deleteReaction', 'clearReaction', 'getReactions',
-      'getSelf', 'getUser', 'getFriendList', 'deleteFriend',
-      'getGuild', 'getGuildList',
-      'getGuildMember', 'getGuildMemberList', 'kickGuildMember', 'muteGuildMember',
-      'setGuildMemberRole', 'unsetGuildMemberRole', 'getGuildRoles', 'createGuildRole', 'modifyGuildRole', 'deleteGuildRole',
-      'getChannel', 'getChannelList', 'muteChannel',
-      'handleFriendRequest', 'handleGuildRequest', 'handleGuildMemberRequest',
-      'updateCommands',
-    ]
-    for (const method of methods) {
-      defineProperty(this, method, async (...args: any) => {
-        if (!this.internal._send) {
-          logger.error('Bot not connected')
-          return
-        }
-        return await this.internal._call('action::bot', {
-          action: method,
-          args: await prepareUniversalMethods(this, method, args),
-        })
-      })
-    }
+    this._updateUniversalMethods()
 
     if (config.callback) {
       config.callback(this)
@@ -75,13 +57,41 @@ export class ForwardBot<T extends ForwardBot.Config = ForwardBot.Config> extends
   }
 
   async initialize() {
+    if (!this.getSelf) return
     await this.getSelf().then(data => Object.assign(this, data))
+  }
+
+  _updateUniversalMethods() {
+    for (const method of universalMethods) {
+      try {
+        if (!predefinedUniversalMethods.includes(method)
+          && (!!this[method] === !!(!this[kUniversalMethods] || this[kUniversalMethods]?.includes(method)))) continue
+        if (!this[kUniversalMethods] || this[kUniversalMethods]?.includes(method)) {
+          this[method] = async (...args: any) => {
+            if (!this.internal._send) {
+              logger.error('Bot not connected')
+              return
+            }
+            return await this.internal._call('action::bot', {
+              action: method,
+              args: await prepareUniversalMethods(this, method, args),
+            })
+          }
+        } else {
+          delete this[method]
+        }
+      } catch (e) {
+        logger.warn('Hooking %s %s failed', this.sid, method)
+      }
+    }
   }
 }
 
 export namespace ForwardBot {
   export interface Config extends Bot.Config {
     callback: (bot: ForwardBot) => Awaitable<void>
+    universalMethods?: (keyof Universal.Methods)[]
+    internalMethods?: string[]
   }
 }
 

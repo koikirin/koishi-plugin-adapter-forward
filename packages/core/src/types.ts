@@ -21,8 +21,8 @@ export interface EventPayload {
 export interface StatusPayload {
   status?: Bot.Status | 'unavailable'
   user?: Partial<Universal.User>
+  universalMethods?: (keyof Universal.Methods)[]
   internalMethods?: string[]
-  universalMethods?: string[]
 }
 
 export interface ActionPayload<T extends string = string, M extends any[] = any[]> {
@@ -58,3 +58,19 @@ export interface DownPacketsMap {
 
 export type UpPackets = UpPacketsMap[keyof UpPacketsMap]
 export type DownPackets = DownPacketsMap[keyof DownPacketsMap]
+
+export const universalMethods: readonly (keyof Universal.Methods)[] = [
+  'sendMessage', 'sendPrivateMessage', 'getMessage', 'getMessageList', 'editMessage', 'deleteMessage',
+  'createReaction', 'deleteReaction', 'clearReaction', 'getReactions',
+  'getSelf', 'getUser', 'getFriendList', 'deleteFriend',
+  'getGuild', 'getGuildList',
+  'getGuildMember', 'getGuildMemberList', 'kickGuildMember', 'muteGuildMember',
+  'setGuildMemberRole', 'unsetGuildMemberRole', 'getGuildRoles', 'createGuildRole', 'modifyGuildRole', 'deleteGuildRole',
+  'getChannel', 'getChannelList', 'muteChannel',
+  'handleFriendRequest', 'handleGuildRequest', 'handleGuildMemberRequest',
+  'updateCommands',
+] as const
+
+export const predefinedUniversalMethods: readonly (keyof Universal.Methods)[] = [
+  'sendMessage', 'sendPrivateMessage'
+] as const

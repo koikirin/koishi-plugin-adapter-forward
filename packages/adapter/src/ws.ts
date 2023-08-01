@@ -4,9 +4,9 @@ import { WebSocket } from 'ws'
 import { UpPackets, DownPackets } from '@hieuzest/adapter-forward'
 import { ForwardHost } from './host'
 import { parseElementObjects, TimeoutError } from './utils'
+import { kForward, kUniversalMethods, kInternalMethods } from '.'
 
 const logger = new Logger('forward')
-const kForward = Symbol.for('adapter-forward')
 
 interface SharedConfig<T = 'ws' | 'ws-reverse'> {
   protocol: T
@@ -132,8 +132,11 @@ async function processPacket(client: ForwardHost, socket: WebSocket, packet: Dow
 
     case 'meta::status': {
       if (!bot) {
-        bot = await client.addBot(sid)
-        logger.info('Connect to bot', bot.sid)
+        bot = await client.addBot(sid, {
+          universalMethods: payload.universalMethods,
+          internalMethods: payload.internalMethods
+        })
+        logger.info('Connect to bot: %s', bot.sid)
         socket.addEventListener('close', () => client.removeBot(bot))
 
         bot.internal._send = (type, payload, rest = {}, socketArg?) => {
@@ -164,6 +167,16 @@ async function processPacket(client: ForwardHost, socket: WebSocket, packet: Dow
             })
           })
         }
+      } else {
+        if (payload.universalMethods) {
+          bot[kUniversalMethods] = payload.universalMethods
+          bot._updateUniversalMethods()
+          logger.debug('universalMethods detected', bot[kUniversalMethods])
+        }
+        if (payload.internalMethods) {
+          bot[kInternalMethods] = payload.internalMethods
+          logger.debug('internalMethods detected', bot[kInternalMethods])
+        }
       }
 
       if (payload.status && payload.status !== bot.status) {
@@ -181,10 +194,6 @@ async function processPacket(client: ForwardHost, socket: WebSocket, packet: Dow
       }
       if (bot && payload.user) {
         Object.assign(bot, payload.user)
-      }
-      if (bot && payload.internalMethods) {
-        bot._internalMethods = payload.internalMethods
-        logger.debug('internalMethods detected', bot._internalMethods)
       }
     }
   }
