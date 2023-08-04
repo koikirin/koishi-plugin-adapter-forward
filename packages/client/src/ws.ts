@@ -31,7 +31,7 @@ export namespace WsClient {
 
   export const Config: Schema<Config> = Schema.intersect([
     Schema.object({
-      protocol: Schema.const('ws').required(process.env.KOISHI_ENV === 'browser'),
+      protocol: Schema.const('ws').required(true),
       responseTimeout: Schema.natural().role('time').default(Time.minute).description('等待响应的时间 (单位为毫秒)。'),
     }).description('连接设置'),
     Quester.createConfig('ws://127.0.0.1:5140/forward'),
@@ -69,7 +69,7 @@ export namespace WsServer {
   }
 
   export const Config: Schema<Config> = Schema.object({
-    protocol: Schema.const('ws-reverse').required(process.env.KOISHI_ENV !== 'browser'),
+    protocol: Schema.const('ws-reverse').required(false),
     path: Schema.string().description('服务器监听的路径。').default('/forward'),
     responseTimeout: Schema.natural().role('time').default(Time.minute).description('等待响应的时间 (单位为毫秒)。'),
   }).description('连接设置')

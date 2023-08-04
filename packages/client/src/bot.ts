@@ -135,7 +135,7 @@ export namespace ForwardClient {
   export const BaseConfig: Schema<BaseConfig> = Schema.object({
     sids: Schema.array(String).default([]),
     token: Schema.string().role('secret'),
-    protocol: Schema.union(['ws', 'ws-reverse']).default('ws'),
+    protocol: Schema.union(['ws', 'ws-reverse']).default('ws-reverse'),
   })
 
   export interface AdvancedConfig {

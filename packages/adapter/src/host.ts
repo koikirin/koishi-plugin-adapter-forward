@@ -50,7 +50,7 @@ export namespace ForwardHost {
   export const BaseConfig: Schema<BaseConfig> = Schema.object({
     sids: Schema.array(String).default([]),
     token: Schema.string().role('secret'),
-    protocol: Schema.union(['ws', 'ws-reverse'] as const).default('ws-reverse'),
+    protocol: Schema.union(['ws', 'ws-reverse'] as const).default('ws'),
   })
 
   export type Config = BaseConfig & (WsServer.Config | WsClient.Config)
