@@ -1,9 +1,10 @@
 import { } from 'koishi'
 import { Context, Schema, Bot, Awaitable, defineProperty, Session, Logger, Universal } from '@satorijs/satori'
 import { WebSocket } from 'ws'
-import { DownPacketsMap, getInternalMethodKeys, universalMethods } from '@hieuzest/adapter-forward'
+import { DownPacketsMap, universalMethods } from '@hieuzest/adapter-forward'
 import { WsClient, WsServer } from './ws'
 import { prepareSession } from './utils'
+import { getInternalMethodKeys } from './internal'
 
 const logger = new Logger('forward-client')
 const kDispath = Symbol('adapter-forward/dispatch')
