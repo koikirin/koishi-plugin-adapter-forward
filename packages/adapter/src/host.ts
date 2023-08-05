@@ -1,7 +1,7 @@
-import { Context, Schema, Bot } from '@satorijs/satori'
+import { Context, Schema, Bot } from 'koishi'
 import { WsClient, WsServer } from './ws'
 import { ForwardBot } from './bot'
-import { kForward } from '.'
+import { kForward } from './utils'
 
 export class ForwardHost<T extends ForwardHost.Config = ForwardHost.Config> extends Bot<T> {
   constructor(ctx: Context, config: T) {

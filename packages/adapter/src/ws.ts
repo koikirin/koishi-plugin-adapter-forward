@@ -1,10 +1,9 @@
-import { Adapter, Context, Logger, Schema, Time, WebSocketLayer, Quester } from '@satorijs/satori'
+import { Adapter, Context, Logger, Schema, Time, WebSocketLayer, Quester } from 'koishi'
 import { defineProperty } from 'cosmokit'
 import { WebSocket } from 'ws'
 import { UpPackets, DownPackets } from '@hieuzest/adapter-forward'
 import { ForwardHost } from './host'
-import { parseElementObjects, TimeoutError } from './utils'
-import { kForward, kUniversalMethods, kInternalMethods } from '.'
+import { kForward, kUniversalMethods, kInternalMethods, parseElementObjects, TimeoutError } from './utils'
 
 const logger = new Logger('forward')
 
@@ -27,7 +26,7 @@ export namespace WsClient {
 
   export const Config: Schema<Config> = Schema.intersect([
     Schema.object({
-      protocol: Schema.const('ws').required(true),
+      protocol: Schema.const('ws').required(false),
       responseTimeout: Schema.natural().role('time').default(Time.minute).description('等待响应的时间 (单位为毫秒)。'),
     }).description('连接设置'),
     Quester.createConfig('ws://127.0.0.1:5140/forward'),

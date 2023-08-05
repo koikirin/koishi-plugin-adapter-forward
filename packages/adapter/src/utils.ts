@@ -1,4 +1,4 @@
-import { h, Dict, Universal, Bot, arrayBufferToBase64 } from '@satorijs/satori'
+import { h, Dict, Universal, Bot, arrayBufferToBase64 } from 'koishi'
 import { readFile } from 'fs/promises'
 import mime from 'mime'
 

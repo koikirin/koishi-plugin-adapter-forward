@@ -1,8 +1,7 @@
-import { Context, Logger, Bot, defineProperty, Awaitable, Universal } from '@satorijs/satori'
+import { Context, Logger, Bot, Awaitable, Universal } from 'koishi'
 import { WebSocket } from 'ws'
 import { UpPacketsMap, universalMethods, predefinedUniversalMethods } from '@hieuzest/adapter-forward'
-import { prepareUniversalMethods } from './utils'
-import { kForward, kUniversalMethods, kInternalMethods } from '.'
+import { kForward, kUniversalMethods, kInternalMethods, prepareUniversalMethods } from './utils'
 
 const logger = new Logger('forward')
 
