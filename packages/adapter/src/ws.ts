@@ -1,9 +1,9 @@
-import { Adapter, Context, Logger, Schema, Time, WebSocketLayer, Quester } from 'koishi'
+import { Adapter, Context, Logger, Quester, Schema, Time, WebSocketLayer } from 'koishi'
 import { defineProperty } from 'cosmokit'
 import { WebSocket } from 'ws'
-import { UpPackets, DownPackets } from '@hieuzest/adapter-forward'
+import { DownPackets, UpPackets } from '@hieuzest/adapter-forward'
 import { ForwardHost } from './host'
-import { kForward, kUniversalMethods, kInternalMethods, parseElementObjects, TimeoutError } from './utils'
+import { kForward, kInternalMethods, kUniversalMethods, parseElementObjects, TimeoutError } from './utils'
 
 const logger = new Logger('forward')
 
@@ -133,7 +133,7 @@ async function processPacket(client: ForwardHost, socket: WebSocket, packet: Dow
       if (!bot) {
         bot = await client.addBot(sid, {
           universalMethods: payload.universalMethods,
-          internalMethods: payload.internalMethods
+          internalMethods: payload.internalMethods,
         })
         logger.info('Connect to bot: %s', bot.sid)
         socket.addEventListener('close', () => client.removeBot(bot))

@@ -1,5 +1,5 @@
 import { } from 'koishi'
-import { Context, Schema, Bot, Awaitable, defineProperty, Session, Logger, Universal } from '@satorijs/satori'
+import { Awaitable, Bot, Context, defineProperty, Logger, Schema, Session, Universal } from '@satorijs/satori'
 import { WebSocket } from 'ws'
 import { DownPacketsMap, universalMethods } from '@hieuzest/adapter-forward'
 import { WsClient, WsServer } from './ws'
@@ -13,7 +13,9 @@ const kUniversalMethods = Symbol.for('adapter-forward/universalMethods')
 const kInternalMethods = Symbol.for('adapter-forward/internalMethods')
 
 interface Internal {
-  _send: <T extends keyof DownPacketsMap>(type: T, payload: DownPacketsMap[T]['payload'], rest?: Partial<DownPacketsMap[T]>, socket?: WebSocket) => Awaitable<void>
+  _send: <T extends keyof DownPacketsMap>(
+    type: T, payload: DownPacketsMap[T]['payload'], rest?: Partial<DownPacketsMap[T]>, socket?: WebSocket
+  ) => Awaitable<void>
   _update: (bot: Bot, socket?: WebSocket, removed?: boolean) => Promise<void>
 }
 
@@ -66,7 +68,7 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
 
         if (config.loadInternalMethods) {
           getInternalMethodKeys({
-            filePath: ctx.loader.cache[ctx.loader.keyFor(bot.ctx.runtime.plugin)]
+            filePath: ctx.loader.cache[ctx.loader.keyFor(bot.ctx.runtime.plugin)],
           }).then(methods => {
             if (methods && methods.length) bot[kInternalMethods] = methods
             else delete bot[kInternalMethods]
@@ -104,18 +106,21 @@ export class ForwardClient<T extends ForwardClient.Config = ForwardClient.Config
 
   async dispatchInner(session: Session) {
     if (!this.internal._send) return
-    if (!session[kForward] && this.validateSid(session.bot))
+    if (!session[kForward] && this.validateSid(session.bot)) {
       this.internal?._send('meta::event', {
         event: session.type,
         session: await prepareSession(session),
         payload: session[session.platform],
       }, { sid: session.sid })
+    }
   }
 
   validateSid(arg: string | Bot) {
     if (typeof arg === 'string') return (!this.config.sids.length || this.config.sids.includes(arg))
-    else return (!arg || (!arg.hidden && arg.selfId))
+    else {
+      return (!arg || (!arg.hidden && arg.selfId))
       && (!this.config.sids.length || this.config.sids.includes(arg.sid))
+    }
   }
 
   getInnerBots() {

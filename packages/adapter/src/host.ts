@@ -1,4 +1,4 @@
-import { Context, Schema, Bot } from 'koishi'
+import { Bot, Context, Schema } from 'koishi'
 import { WsClient, WsServer } from './ws'
 import { ForwardBot } from './bot'
 import { kForward } from './utils'
@@ -65,9 +65,8 @@ export namespace ForwardHost {
 }
 
 function parsePlatform(sid: string) {
-  let platform: string, selfId: string
   const index = sid.indexOf(':')
-  platform = sid.slice(0, index)
-  selfId = sid.slice(index + 1)
+  const platform = sid.slice(0, index)
+  const selfId = sid.slice(index + 1)
   return [platform, selfId]
 }

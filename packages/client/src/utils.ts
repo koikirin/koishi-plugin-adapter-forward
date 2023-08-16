@@ -1,9 +1,9 @@
-import { Bot, Universal, h, Session, clone, arrayBufferToBase64 } from '@satorijs/satori'
+import { arrayBufferToBase64, Bot, h, Session, Universal } from '@satorijs/satori'
 import { readFile } from 'fs/promises'
 import mime from 'mime'
 
 export function regularizeUniversalMethods<K extends keyof Universal.Methods>(
-  bot: Bot, action: K, args: Parameters<Universal.Methods[K]>
+  bot: Bot, action: K, args: Parameters<Universal.Methods[K]>,
 ): Parameters<Universal.Methods[K]> {
   switch (action) {
     case 'sendMessage': {
@@ -30,7 +30,7 @@ export async function prepareElement(bot: Bot, element: h) {
 
     return h(element.type, {
       ...element.attrs,
-      url: element.attrs.url = `data:${mimetype};base64,${base64}`
+      url: element.attrs.url = `data:${mimetype};base64,${base64}`,
     }, await prepareElements(bot, element.children))
   } else {
     return h(element.type, element.attrs, await prepareElements(bot, element.children))
@@ -41,8 +41,6 @@ async function prepareElements(bot: Bot, elements: h[]): Promise<h[]> {
   return Promise.all(elements.map(el => prepareElement(bot, el)))
 }
 
-export async function prepareSession(original: Session) {
-  const session = clone(original)
-  session.elements = await prepareElements(session.bot, session.elements)
-  return session
+export async function prepareSession(session: Session): Promise<Session.Payload> {
+  return { ...session.toJSON(), elements: await prepareElements(session.bot, session.elements) }
 }

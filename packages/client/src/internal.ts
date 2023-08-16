@@ -30,28 +30,28 @@ export async function getInternalMethodKeys(options: {
       useCaseSensitiveFileNames: () => ts.sys.useCaseSensitiveFileNames,
       fileExists,
       readFile,
-    };
+    }
 
     function fileExists(fileName: string): boolean {
-      return (fileName in sourceMap) || ts.sys.fileExists(fileName);
+      return (fileName in sourceMap) || ts.sys.fileExists(fileName)
     }
 
     function readFile(fileName: string): string | undefined {
-      return sourceMap[fileName] || ts.sys.readFile(fileName);
+      return sourceMap[fileName] || ts.sys.readFile(fileName)
     }
 
     function getSourceFile(fileName: string, languageVersion: ts.ScriptTarget, onError?: (message: string) => void) {
-      const sourceText = readFile(fileName);
+      const sourceText = readFile(fileName)
       return sourceText !== undefined
         ? ts.createSourceFile(fileName, sourceText, languageVersion)
-        : undefined;
+        : undefined
     }
   }
 
   const prog = ts.createProgram({
     rootNames: Object.keys(sourceMap),
     options: ts.getDefaultCompilerOptions(),
-    host: createCompilerHost()
+    host: createCompilerHost(),
   })
 
   function visit(node: ts.Node) {

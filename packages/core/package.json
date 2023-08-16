@@ -1,8 +1,9 @@
 {
   "name": "@hieuzest/adapter-forward",
   "description": "Forward your adapter",
-  "version": "1.4.0",
-  "main": "lib/index.js",
+  "version": "1.4.3",
+  "main": "lib/index.cjs",
+  "module": "lib/index.mjs",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",

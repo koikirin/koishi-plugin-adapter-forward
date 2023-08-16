@@ -1,7 +1,7 @@
-import { Context, Logger, Bot, Awaitable, Universal } from 'koishi'
+import { Awaitable, Bot, Context, Logger, Universal } from 'koishi'
 import { WebSocket } from 'ws'
-import { UpPacketsMap, universalMethods, predefinedUniversalMethods } from '@hieuzest/adapter-forward'
-import { kForward, kUniversalMethods, kInternalMethods, prepareUniversalMethods } from './utils'
+import { predefinedUniversalMethods, universalMethods, UpPacketsMap } from '@hieuzest/adapter-forward'
+import { kForward, kInternalMethods, kUniversalMethods, prepareUniversalMethods } from './utils'
 
 const logger = new Logger('forward')
 

@@ -1,4 +1,4 @@
-import type { Session, Bot, Universal } from '@satorijs/satori'
+import type { Bot, Session, Universal } from '@satorijs/satori'
 
 export interface Packet<T extends string, P> {
   type: T
@@ -14,7 +14,7 @@ export interface Error {
 
 export interface EventPayload {
   event: string
-  session: Session
+  session: Session.Payload
   payload: any
 }
 
@@ -72,5 +72,5 @@ export const universalMethods: readonly (keyof Universal.Methods)[] = [
 ] as const
 
 export const predefinedUniversalMethods: readonly (keyof Universal.Methods)[] = [
-  'sendMessage', 'sendPrivateMessage'
+  'sendMessage', 'sendPrivateMessage',
 ] as const

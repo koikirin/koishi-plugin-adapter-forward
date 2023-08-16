@@ -77,7 +77,6 @@ export namespace WsServer {
 
 async function accept(client: ForwardClient, socket?: WebSocket) {
   socket ||= client.socket
-  let verified = false
 
   socket.addEventListener('message', async ({ data }) => {
     let packet: UpPackets
@@ -95,9 +94,9 @@ async function accept(client: ForwardClient, socket?: WebSocket) {
     if (client.config.protocol === 'ws-reverse' && !socketArg && (client.adapter as WsServer).wsServer.clients.size) {
       const packet = { type, payload, ...rest }
       logger.debug('send ws %o', packet)
-        ; (client.adapter as WsServer).wsServer.clients.forEach(
-          (socket: WebSocket) => socket._verified && socket.send(JSON.stringify(packet)
-          ))
+      ; (client.adapter as WsServer).wsServer.clients.forEach(
+        (socket: WebSocket) => socket._verified && socket.send(JSON.stringify(packet),
+        ))
     } else {
       socketArg ||= socket
       if (!socketArg || !socketArg._verified) return

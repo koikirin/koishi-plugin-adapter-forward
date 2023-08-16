@@ -1,4 +1,4 @@
-import { h, Dict, Universal, Bot, arrayBufferToBase64 } from 'koishi'
+import { arrayBufferToBase64, Bot, Dict, h, Universal } from 'koishi'
 import { readFile } from 'fs/promises'
 import mime from 'mime'
 
@@ -36,7 +36,7 @@ export async function prepareElement(bot: Bot, element: h) {
 
     return h(element.type, {
       ...element.attrs,
-      url: element.attrs.url = `data:${mimetype};base64,${base64}`
+      url: element.attrs.url = `data:${mimetype};base64,${base64}`,
     }, await prepareElements(bot, element.children))
   } else {
     return h(element.type, element.attrs, await prepareElements(bot, element.children))
@@ -48,7 +48,7 @@ async function prepareElements(bot: Bot, elements: h[]): Promise<h[]> {
 }
 
 export async function prepareUniversalMethods<K extends keyof Universal.Methods>(
-  bot: Bot, action: K, args: Parameters<Universal.Methods[K]>
+  bot: Bot, action: K, args: Parameters<Universal.Methods[K]>,
 ): Promise<Parameters<Universal.Methods[K]>> {
   switch (action) {
     case 'sendMessage': {

@@ -1,8 +1,9 @@
 {
   "name": "@hieuzest/koishi-plugin-adapter-forward",
   "description": "Forward your adapters",
-  "version": "1.7.1",
-  "main": "lib/index.js",
+  "version": "1.7.3",
+  "main": "lib/index.cjs",
+  "module": "lib/index.mjs",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
